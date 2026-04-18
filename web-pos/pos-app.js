@@ -1,4 +1,24 @@
+import { app } from "./firebase-init.js";
+import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
+
+console.log("POS App v1.2 - Loading with Cloud Settings...");
+
+const db = getFirestore(app);
+
 const PLUGIN_URL = 'http://localhost:3001';
+
+// Receipt settings loaded from Firestore (populated on init)
+let receiptSettings = {
+  storeName: "Vozy POS (Loading...)", 
+  address: "---",
+  phone: "---",
+  footer: "---",
+  fontSize: 13,
+  storeNameFontSize: 16,
+  storeNameAlign: "center",
+  addressFontSize: 11,
+  addressAlign: "center"
+};
 
 // Sample Product Data
 const products = [
@@ -26,7 +46,10 @@ const statusText = pluginStatus.querySelector('.status-text');
 /**
  * Initialize Web POS
  */
-function init() {
+async function init() {
+    // Load receipt settings from Firestore first
+    await loadReceiptSettings();
+
     renderProducts();
     updateCartUI();
     checkPluginConnection();
@@ -45,6 +68,24 @@ function init() {
     });
 
     printBtn.addEventListener('click', sendPrintJob);
+}
+
+/**
+ * Load saved receipt settings from Firestore.
+ * Falls back to defaults if the document doesn't exist yet.
+ */
+async function loadReceiptSettings() {
+    try {
+        const snap = await getDoc(doc(db, 'settings', 'receipt'));
+        if (snap.exists()) {
+            receiptSettings = { ...receiptSettings, ...snap.data() };
+            console.log('Receipt settings loaded from Firestore:', receiptSettings);
+        } else {
+            console.log('No saved receipt settings found, using defaults.');
+        }
+    } catch (err) {
+        console.warn('Could not load receipt settings:', err);
+    }
 }
 
 /**
@@ -145,18 +186,24 @@ async function sendPrintJob() {
 
     const receiptData = {
         data: {
-            storeName: "Vozy Premium Cafe",
-            address: "Building B, Sukhumvit Road",
-            phone: "02-XXX-XXXX",
+            // Use settings loaded from Firestore (via Receipt Editor)
+            storeName: receiptSettings.storeName,
+            storeNameFontSize: receiptSettings.storeNameFontSize,
+            storeNameAlign: receiptSettings.storeNameAlign,
+            address: receiptSettings.address,
+            addressFontSize: receiptSettings.addressFontSize,
+            addressAlign: receiptSettings.addressAlign,
+            phone: receiptSettings.phone,
+            footer: receiptSettings.footer,
+            fontSize: receiptSettings.fontSize,
             items: cart.map(item => ({
                 qty: `${item.qty}x`,
                 name: item.name,
                 price: (item.price * item.qty).toFixed(2)
             })),
             total: totalEl.innerText,
-            cash: totalEl.innerText, // Assuming exact cash for demo
-            change: "0.00",
-            footer: "Thank you! Please enjoy your coffee."
+            cash: totalEl.innerText,
+            change: "0.00"
         }
     };
 

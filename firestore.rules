@@ -1,0 +1,14 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Allow anyone who can reach the site to read/write receipt settings.
+    // This is suitable for a private internal admin tool.
+    // If you add Firebase Auth later, replace `true` with `request.auth != null`.
+    match /settings/{document=**} {
+      allow read, write: if true;
+    }
+
+  }
+}

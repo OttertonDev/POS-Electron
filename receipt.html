@@ -119,7 +119,6 @@
 
     <div class="footer">
       <div id="footerMessage">ขอบคุณที่ใช้บริการค่ะ</div>
-      <div>Please come again!</div>
     </div>
   </div>
 
@@ -131,8 +130,22 @@
     window.renderReceipt = function(data) {
       if (!data) return;
 
-      if (data.storeName) document.getElementById('storeName').innerText = data.storeName;
-      if (data.address) document.getElementById('storeAddress').innerText = data.address;
+      const nameEl = document.getElementById('storeName');
+      if (data.storeName) nameEl.innerText = data.storeName;
+      if (data.storeNameFontSize) nameEl.style.fontSize = data.storeNameFontSize + 'px';
+      if (data.storeNameAlign) nameEl.style.textAlign = data.storeNameAlign;
+
+      const addrEl = document.getElementById('storeAddress');
+      if (data.address) addrEl.innerText = data.address;
+      if (data.addressFontSize) {
+        addrEl.style.fontSize = data.addressFontSize + 'px';
+        document.getElementById('storePhone').style.fontSize = data.addressFontSize + 'px';
+      }
+      if (data.addressAlign) {
+        addrEl.style.textAlign = data.addressAlign;
+        document.getElementById('storePhone').style.textAlign = data.addressAlign;
+      }
+
       if (data.phone) document.getElementById('storePhone').innerText = 'โทร: ' + data.phone;
       
       const now = new Date();

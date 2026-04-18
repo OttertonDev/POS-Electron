@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Receipt Editor | Vozy Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="receipt-editor.css">
+</head>
+<body>
+    <div class="editor-wrap">
+        <!-- Top Bar -->
+        <header class="top-bar">
+            <div class="top-bar-left">
+                <button class="back-btn" onclick="window.location.href='index.html'" id="backBtn">
+                    <i data-lucide="arrow-left"></i>
+                </button>
+                <div>
+                    <h1>Receipt Editor</h1>
+                    <span class="subtitle">Customize your thermal receipt layout</span>
+                </div>
+            </div>
+            <div class="sensitive-badge">
+                <i data-lucide="shield-alert" style="width:14px;height:14px;"></i>
+                SENSITIVE
+            </div>
+        </header>
+
+        <div class="editor-layout">
+            <!-- Left: Edit Form -->
+            <div class="form-section">
+                <h2>
+                    <span class="section-icon"><i data-lucide="store" style="width:16px;height:16px;"></i></span>
+                    Store Information
+                </h2>
+
+                <div class="form-group">
+                    <label>Store Name</label>
+                    <input type="text" id="storeName" placeholder="e.g. Vozy Premium Cafe" maxlength="40">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Store Name Font Size</label>
+                        <div class="slider-group">
+                            <span style="font-size:0.75rem;color:var(--text-muted);">Small</span>
+                            <input type="range" id="storeNameFontSize" min="10" max="22" value="16" step="0.5">
+                            <span style="font-size:0.75rem;color:var(--text-muted);">Large</span>
+                            <span class="slider-value" id="storeNameFontSizeValue">16px</span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Store Name Alignment</label>
+                        <select id="storeNameAlign">
+                            <option value="center">Center</option>
+                            <option value="left">Left</option>
+                            <option value="right">Right</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Address</label>
+                        <input type="text" id="storeAddress" placeholder="e.g. Building B, Sukhumvit Road">
+                    </div>
+                    <div class="form-group">
+                        <label>Phone Number</label>
+                        <input type="text" id="storePhone" placeholder="e.g. 02-XXX-XXXX">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Address Font Size</label>
+                        <div class="slider-group">
+                            <span style="font-size:0.75rem;color:var(--text-muted);">Small</span>
+                            <input type="range" id="addressFontSize" min="8" max="16" value="11" step="0.5">
+                            <span style="font-size:0.75rem;color:var(--text-muted);">Large</span>
+                            <span class="slider-value" id="addressFontSizeValue">11px</span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Address Alignment</label>
+                        <select id="addressAlign">
+                            <option value="center">Center</option>
+                            <option value="left">Left</option>
+                            <option value="right">Right</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Footer Message</label>
+                    <textarea id="footerMessage" placeholder="e.g. Thank you! Please enjoy your coffee."></textarea>
+                </div>
+
+                <h2 style="margin-top: 32px;">
+                    <span class="section-icon"><i data-lucide="settings" style="width:16px;height:16px;"></i></span>
+                    Print Settings
+                </h2>
+
+                <div class="form-group">
+                    <label>Base Font Size</label>
+                    <div class="slider-group">
+                        <span style="font-size:0.75rem;color:var(--text-muted);">Small</span>
+                        <input type="range" id="fontSize" min="10" max="18" value="13" step="0.5">
+                        <span style="font-size:0.75rem;color:var(--text-muted);">Large</span>
+                        <span class="slider-value" id="fontSizeValue">13px</span>
+                    </div>
+                </div>
+
+                <div class="btn-row">
+                    <button class="btn-save" id="saveBtn">
+                        <i data-lucide="save" style="width:18px;height:18px;vertical-align:middle;margin-right:6px;"></i>
+                        Save to Cloud
+                    </button>
+                    <button class="btn-reset" id="resetBtn">Reset</button>
+                </div>
+            </div>
+
+            <!-- Right: Live Preview -->
+            <div class="preview-section">
+                <div class="preview-card">
+                    <div class="preview-header">
+                        <i data-lucide="eye" style="width:16px;height:16px;"></i>
+                        Live Preview
+                    </div>
+                    <div class="preview-body">
+                        <div class="receipt-preview" id="receiptPreview">
+                            <div class="rp-header">
+                                <div class="rp-store-name" id="previewStoreName">Vozy Premium Cafe</div>
+                                <div id="previewAddress">Building B, Sukhumvit Road</div>
+                                <div id="previewPhone">โทร: 02-XXX-XXXX</div>
+                                <div style="font-size:8px;margin-top:2px;">วันที่: 18/4/2569 14:30</div>
+                            </div>
+                            <div class="rp-divider"></div>
+                            <div class="rp-item-row">
+                                <span>1x Iced Americano</span>
+                                <span>65.00</span>
+                            </div>
+                            <div class="rp-item-row">
+                                <span>1x Hot Latte</span>
+                                <span>60.00</span>
+                            </div>
+                            <div class="rp-divider"></div>
+                            <div class="rp-totals">
+                                <div class="rp-item-row">
+                                    <span>รวมเงิน (Total)</span>
+                                    <span>133.75</span>
+                                </div>
+                                <div class="rp-item-row">
+                                    <span>เงินสด (Cash)</span>
+                                    <span>200.00</span>
+                                </div>
+                                <div class="rp-item-row">
+                                    <span>เงินทอน (Change)</span>
+                                    <span>66.25</span>
+                                </div>
+                            </div>
+                            <div class="rp-divider"></div>
+                            <div class="rp-footer" id="previewFooter">
+                                Thank you! Please enjoy your coffee.<br>Please come again!
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <!-- Firebase + Firestore -->
+    <script type="module" src="receipt-editor.js"></script>
+</body>
+</html>

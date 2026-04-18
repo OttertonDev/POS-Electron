@@ -206,6 +206,7 @@ body {
 .icon-purple-light { background: #f0edff; color: var(--icon-purple); }
 .icon-pink-light { background: #fdf2f8; color: var(--icon-pink); }
 .icon-red-light { background: #fff1f2; color: var(--icon-red); }
+.icon-orange-light { background: #fff7ed; color: #f97316; }
 
 .nav-details h3 {
     font-size: 1.1rem;

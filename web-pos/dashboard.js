@@ -62,6 +62,11 @@ document.getElementById('posLink').addEventListener('click', () => {
     window.location.href = 'pos.html';
 });
 
+document.getElementById('receiptEditorLink').addEventListener('click', () => {
+    // Navigate to the Receipt Editor page
+    window.location.href = 'receipt-editor.html';
+});
+
 // Logout Mock (For demo)
 document.querySelector('.logout-btn').addEventListener('click', () => {
     alert('Logging out...');
