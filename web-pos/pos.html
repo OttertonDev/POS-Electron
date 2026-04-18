@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vozy Premium POS | Smart Cafe System</title>
+    <!-- Google Fonts: Inter for UI, Prompt for Thai context -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Prompt:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="pos-style.css">
+    <!-- Firebase Initialization -->
+    <script type="module" src="firebase-init.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="logo">
+                <div class="logo-icon">V</div>
+                <span>Vozy POS</span>
+            </div>
+            <nav class="categories">
+                <button class="cat-btn active" data-category="coffee">
+                    <span class="icon">☕</span> Coffee
+                </button>
+                <button class="cat-btn" data-category="bakery">
+                    <span class="icon">🥐</span> Bakery
+                </button>
+                <button class="cat-btn" data-category="tea">
+                    <span class="icon">🍵</span> Tea
+                </button>
+            </nav>
+            <div class="sidebar-footer">
+                <div id="pluginStatus" class="status-indicator offline">
+                    <span class="pulse"></span>
+                    <span class="status-text">Plugin Offline</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Product Grid -->
+        <main class="product-area">
+            <header class="top-bar">
+                <div class="search-bar">
+                    <input type="text" placeholder="Search menu items...">
+                </div>
+                <div class="user-info">
+                    <span class="date" id="currentDate">--/--/----</span>
+                </div>
+            </header>
+
+            <div class="products-grid" id="productGrid">
+                <!-- Products will be injected by JavaScript -->
+            </div>
+        </main>
+
+        <!-- Right Sidebar (Cart & Checkout) -->
+        <section class="cart-area">
+            <h2>Current Order</h2>
+            <div class="cart-items" id="cartList">
+                <div class="empty-cart">
+                    <img src="https://cdn-icons-png.flaticon.com/512/11329/11329060.png" alt="Empty Cart">
+                    <p>Order is empty</p>
+                </div>
+            </div>
+
+            <div class="cart-summary">
+                <div class="summary-row">
+                    <span>Subtotal</span>
+                    <span id="subtotal">0.00</span>
+                </div>
+                <div class="summary-row">
+                    <span>Tax (7%)</span>
+                    <span id="tax">0.00</span>
+                </div>
+                <div class="total-row">
+                    <span>Total Amount</span>
+                    <span class="total-value" id="total">0.00</span>
+                </div>
+            </div>
+
+            <button class="btn-print" id="printBtn" disabled>
+                <span class="btn-icon">🖨️</span> Print Receipt
+            </button>
+        </section>
+    </div>
+
+    <script src="pos-app.js"></script>
+</body>
+</html>

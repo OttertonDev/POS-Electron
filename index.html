@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Electron POS 58mm Printer Demo</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 20px; background: #f0f2f5;}
+    .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 500px; margin: 0 auto; }
+    h1 { font-size: 20px; color: #333; }
+    select, button { padding: 10px; font-size: 14px; width: 100%; margin-top: 10px; border-radius: 4px; border: 1px solid #ccc; box-sizing: border-box; }
+    button { background: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; margin-top: 20px; }
+    button:hover { background: #0056b3; }
+    #status { margin-top: 15px; font-size: 14px; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Print Receipt (58mm Graphic Mode)</h1>
+    <p>Select your thermal printer (e.g., Vozy V50) and click print. It will bypass pure ESC/POS encoding and use your system printer driver to send a graphic representation, fully supporting Thai fonts!</p>
+    
+    <div id="apiStatus" style="background: #e7f3ff; padding: 10px; border-radius: 4px; margin-bottom: 15px; border-left: 4px solid #007bff; font-size: 13px;">
+      <b>API Status:</b> Online at <code id="apiUrl">http://localhost:3001</code>
+    </div>
+
+    <label for="printerSelect">Select Printer (Local & API):</label>
+    <select id="printerSelect">
+      <option value="">Loading printers...</option>
+    </select>
+
+    <button id="printBtn">Print Manual Sample</button>
+    <div id="status"></div>
+  </div>
+
+  <div class="card" style="margin-top: 20px;">
+    <h2>Live API Print Log</h2>
+    <div id="logList" style="height: 150px; overflow-y: auto; border: 1px solid #eee; padding: 10px; font-size: 12px; background: #fafafa; border-radius: 4px;">
+      <div style="color: #888;">Waiting for API activity...</div>
+    </div>
+  </div>
+
+  <script src="./renderer.js"></script>
+</body>
+</html>

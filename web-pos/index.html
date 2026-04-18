@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vozy Admin Dashboard</title>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="dashboard.css">
+    <!-- Firebase Initialization -->
+    <script type="module" src="firebase-init.js"></script>
+</head>
+<body>
+    <div class="dashboard-wrap">
+        <!-- Top Bar -->
+        <header class="top-nav">
+            <div class="logo-area">
+                <div class="logo-box">
+                    <i data-lucide="layout-grid"></i>
+                </div>
+                <div class="logo-text">
+                    <h1>Welcome back, kyletheyosh@gmail.com</h1>
+                    <p>Logged in as: kyletheyosh@gmail.com (staff)</p>
+                </div>
+            </div>
+            <button class="logout-btn">
+                <i data-lucide="log-out"></i>
+            </button>
+        </header>
+
+        <div class="main-content">
+            <!-- Left Area: Statistics -->
+            <section class="stats-section">
+                <div class="section-header">
+                    <h2>สถิติ</h2>
+                    <a href="#" class="analytics-link">
+                        <i data-lucide="bar-chart-2"></i> Full Analytics
+                    </a>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon icon-green">
+                            <i data-lucide="package"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-value">0</span>
+                            <span class="stat-label">สินค้าทั้งหมด</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon icon-red">
+                            <i data-lucide="alert-triangle"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-value">0</span>
+                            <span class="stat-label">สินค้าใกล้หมด</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon icon-purple">
+                            <i data-lucide="wallet"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-value">0฿</span>
+                            <span class="stat-label">รายรับวันนี้</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chart Container -->
+                <div class="chart-container">
+                    <canvas id="revenueChart"></canvas>
+                </div>
+            </section>
+
+            <!-- Right Area: Navigation Cards -->
+            <aside class="nav-cards">
+                <div class="nav-card">
+                    <div class="nav-icon icon-green-light">
+                        <i data-lucide="list"></i>
+                    </div>
+                    <div class="nav-details">
+                        <h3>รายรับ-รายจ่าย</h3>
+                        <p>รายการย้อนหลังและเลขพัสดุ</p>
+                    </div>
+                    <i data-lucide="arrow-right" class="arrow"></i>
+                </div>
+
+                <div class="nav-card" id="posLink">
+                    <div class="nav-icon icon-purple-light">
+                        <i data-lucide="file-text"></i>
+                    </div>
+                    <div class="nav-details">
+                        <h3>ใบเสร็จ (POS)</h3>
+                        <p>คิดเงินและพิมพ์ใบเสร็จ</p>
+                    </div>
+                    <i data-lucide="arrow-right" class="arrow"></i>
+                </div>
+
+                <div class="nav-card">
+                    <div class="nav-icon icon-pink-light">
+                        <i data-lucide="truck"></i>
+                    </div>
+                    <div class="nav-details">
+                        <h3>ใบปะหน้า (Shipping)</h3>
+                        <p>พิมพ์ใบจ่าหน้าพัสดุ</p>
+                    </div>
+                    <i data-lucide="arrow-right" class="arrow"></i>
+                </div>
+
+                <div class="nav-card">
+                    <div class="nav-icon icon-red-light">
+                        <i data-lucide="box"></i>
+                    </div>
+                    <div class="nav-details">
+                        <h3>สต็อกสินค้า</h3>
+                        <p>จัดการสินค้าในสต็อก</p>
+                    </div>
+                    <i data-lucide="arrow-right" class="arrow"></i>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="dashboard.js"></script>
+</body>
+</html>
