@@ -17,7 +17,7 @@ const db = getFirestore(app);
 
 // Default receipt settings
 const DEFAULTS = {
-  storeName: "Vozy Premium Cafe",
+  storeName: "Otterton's Point of Sale",
   address: "Building B, Sukhumvit Road",
   phone: "02-XXX-XXXX",
   footer: "Thank you! Please enjoy your coffee.",

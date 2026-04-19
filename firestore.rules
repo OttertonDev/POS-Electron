@@ -10,5 +10,10 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    // Inventory products collection used by Stock Management and POS menu sync.
+    match /products/{document=**} {
+      allow read, write: if true;
+    }
+
   }
 }
