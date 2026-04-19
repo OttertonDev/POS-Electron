@@ -1,0 +1,48 @@
+@font-face {
+    font-family: 'Neue Kabel';
+    src: url('../font/NeueKabel-BTUulivP.ttf') format('truetype');
+    font-weight: 900;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Google Sans';
+    src: url('../font/GoogleSans-DGRbB7N7.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+}
+
+:root {
+    --app-body-font: 'Google Sans', 'Inter', 'Prompt', sans-serif;
+    --app-header-font: 'Neue Kabel', 'Google Sans', sans-serif;
+}
+
+html, body {
+    font-family: var(--app-body-font);
+}
+
+body, button, input, select, textarea {
+    font-family: var(--app-body-font);
+}
+
+h1, h2, h3, h4, h5, h6,
+.logo-text h1,
+.section-header h2,
+.nav-details h3,
+.stat-value,
+.panel-title-row h3,
+.title-group h1,
+.top-bar-left h1,
+.preview-header,
+.sensitive-badge,
+.btn-save,
+.btn-reset,
+.btn-print,
+.action-btn,
+.mini-btn,
+.login-btn,
+.permission-modal h2,
+.permission-modal-button,
+.back-btn {
+    font-family: var(--app-header-font);
+}

@@ -1,6 +1,87 @@
 // Initialize Lucide Icons
 lucide.createIcons();
 
+const dashboardState = {
+    role: window.webPosAuthState?.role || null,
+    isAdmin: Boolean(window.webPosAuthState?.isAdmin),
+    isStaff: Boolean(window.webPosAuthState?.isStaff)
+};
+
+const stockCard = document.getElementById('stockLink');
+const receiptEditorCard = document.getElementById('receiptEditorLink');
+const permissionModalOverlay = document.getElementById('permissionModalOverlay');
+const permissionModalCloseBtn = document.getElementById('permissionModalCloseBtn');
+
+function showPermissionModal() {
+    if (!permissionModalOverlay) {
+        return;
+    }
+
+    permissionModalOverlay.hidden = false;
+}
+
+function hidePermissionModal() {
+    if (!permissionModalOverlay) {
+        return;
+    }
+
+    permissionModalOverlay.hidden = true;
+}
+
+function syncDashboardAccess() {
+    const isStaff = dashboardState.role === 'staff';
+    const isAdmin = dashboardState.role === 'administrator';
+    const restricted = isStaff || (!isAdmin && !dashboardState.role);
+
+    [stockCard, receiptEditorCard].forEach((card) => {
+        if (!card) {
+            return;
+        }
+
+        card.classList.toggle('is-disabled', restricted);
+        card.setAttribute('aria-disabled', restricted ? 'true' : 'false');
+    });
+}
+
+function handleCardNavigation(card, targetUrl, restricted = false) {
+    if (!card) {
+        return;
+    }
+
+    card.addEventListener('click', () => {
+        const shouldBlock = restricted && dashboardState.role !== 'administrator';
+
+        if (shouldBlock) {
+            showPermissionModal();
+            return;
+        }
+
+        window.location.href = targetUrl;
+    });
+}
+
+function applyAuthState(state) {
+    dashboardState.role = state?.role || null;
+    dashboardState.isAdmin = Boolean(state?.isAdmin);
+    dashboardState.isStaff = Boolean(state?.isStaff);
+    syncDashboardAccess();
+}
+
+window.addEventListener('webpos-auth-state', (event) => {
+    applyAuthState(event.detail);
+});
+
+if (window.webPosAuthState?.ready) {
+    applyAuthState(window.webPosAuthState);
+}
+
+permissionModalCloseBtn?.addEventListener('click', hidePermissionModal);
+permissionModalOverlay?.addEventListener('click', (event) => {
+    if (event.target === permissionModalOverlay) {
+        hidePermissionModal();
+    }
+});
+
 // Chart.js Configuration
 const ctx = document.getElementById('revenueChart').getContext('2d');
 const revenueChart = new Chart(ctx, {
@@ -57,17 +138,8 @@ const revenueChart = new Chart(ctx, {
 });
 
 // Navigation Logic
-document.getElementById('posLink').addEventListener('click', () => {
-    // Navigate to the POS page
-    window.location.href = 'pos.html';
-});
+handleCardNavigation(document.getElementById('posLink'), 'pos.html', false);
+handleCardNavigation(stockCard, 'stock.html', true);
+handleCardNavigation(receiptEditorCard, 'receipt-editor.html', true);
 
-document.getElementById('receiptEditorLink').addEventListener('click', () => {
-    // Navigate to the Receipt Editor page
-    window.location.href = 'receipt-editor.html';
-});
-
-document.getElementById('stockLink').addEventListener('click', () => {
-    // Navigate to the Stock page
-    window.location.href = 'stock.html';
-});
+syncDashboardAccess();

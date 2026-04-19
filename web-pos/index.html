@@ -9,10 +9,11 @@
     <!-- Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <link rel="stylesheet" href="dashboard.css">
+    <link rel="stylesheet" href="theme.css">
     <!-- Firebase Initialization -->
     <script type="module" src="firebase-init.js"></script>
 </head>
-<body>
+<body data-page="dashboard">
     <div class="dashboard-wrap">
         <!-- Top Bar -->
         <header class="top-nav">
@@ -78,7 +79,7 @@
 
             <!-- Right Area: Navigation Cards -->
             <aside class="nav-cards">
-                <div class="nav-card">
+                <div class="nav-card admin-only-card" id="stockLink">
                     <div class="nav-icon icon-green-light">
                         <i data-lucide="list"></i>
                     </div>
@@ -89,7 +90,7 @@
                     <i data-lucide="arrow-right" class="arrow"></i>
                 </div>
 
-                <div class="nav-card" id="posLink">
+                <div class="nav-card admin-only-card" id="receiptEditorLink">
                     <div class="nav-icon icon-purple-light">
                         <i data-lucide="file-text"></i>
                     </div>
@@ -111,7 +112,7 @@
                     <i data-lucide="arrow-right" class="arrow"></i>
                 </div>
 
-                <div class="nav-card" id="stockLink">
+                <div class="nav-card admin-only-card" id="stockLink">
                     <div class="nav-icon icon-red-light">
                         <i data-lucide="box"></i>
                     </div>
@@ -122,7 +123,7 @@
                     <i data-lucide="arrow-right" class="arrow"></i>
                 </div>
 
-                <div class="nav-card" id="receiptEditorLink">
+                <div class="nav-card admin-only-card" id="receiptEditorLink">
                     <div class="nav-icon icon-orange-light">
                         <i data-lucide="pencil-ruler"></i>
                     </div>
@@ -133,6 +134,14 @@
                     <i data-lucide="arrow-right" class="arrow"></i>
                 </div>
             </aside>
+        </div>
+    </div>
+
+    <div class="permission-modal-overlay" id="permissionModalOverlay" hidden>
+        <div class="permission-modal" role="dialog" aria-modal="true" aria-labelledby="permissionModalTitle" aria-describedby="permissionModalBody">
+            <h2 id="permissionModalTitle">insufficient permission!</h2>
+            <p id="permissionModalBody">please contact Otterton for more information.</p>
+            <button type="button" class="permission-modal-button" id="permissionModalCloseBtn">Close</button>
         </div>
     </div>
 
