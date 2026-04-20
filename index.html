@@ -59,9 +59,9 @@
 
 <body>
   <div class="card">
-    <h1>Receipt Printer (Graphic Mode)</h1>
-    <p>Select your thermal printer and click print. It will bypass pure ESC/POS encoding and use your system printer
-      driver to send a graphic representation.</p>
+    <h1>Receipt Printer (Hybrid RAW Mode)</h1>
+    <p>Select your thermal printer and click print. The plugin tries RAW ESC/POS raster first for tighter tail control,
+      then automatically falls back to Windows graphic printing if RAW fails.</p>
 
     <div id="apiStatus"
       style="background: #cbffd8; padding: 10px; border-radius: 4px; margin-bottom: 15px; border-left: 4px solid #00ff40; font-size: 13px;">

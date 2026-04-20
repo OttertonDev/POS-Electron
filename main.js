@@ -3,10 +3,45 @@ const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+const { buildEscPosRasterFromBitmap } = require('./escpos-raster');
+const { sendRawToPrinterWindows } = require('./windows-raw-spool');
 
 let mainWindow;
 const server = express();
 const PORT = 3001;
+
+const PRINT_MODE = normalizePrintMode(process.env.POS_PRINT_MODE || 'hybrid');
+const RAW_RENDER_SCALE = readNumber(process.env.POS_RAW_RENDER_SCALE, 2, 1, 4);
+const RAW_THRESHOLD = Math.round(readNumber(process.env.POS_RAW_THRESHOLD, 142, 1, 254));
+const RAW_CHUNK_HEIGHT = Math.round(readNumber(process.env.POS_RAW_CHUNK_HEIGHT, 128, 1, 255));
+const RAW_END_FEED_LINES = Math.round(readNumber(process.env.POS_RAW_END_FEED_LINES, 1, 0, 8));
+const RAW_WIDTH_DOTS = Math.round(readNumber(process.env.POS_RAW_WIDTH_DOTS, 384, 8, 576));
+const RAW_JOB_NAME = process.env.POS_RAW_JOB_NAME || 'Otterton POS RAW Receipt';
+
+function normalizePrintMode(mode) {
+  const lowered = String(mode || 'hybrid').toLowerCase();
+  if (lowered === 'raw' || lowered === 'graphic' || lowered === 'hybrid') {
+    return lowered;
+  }
+  return 'hybrid';
+}
+
+function readNumber(value, fallback, min, max) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+
+  if (parsed < min) {
+    return min;
+  }
+
+  if (parsed > max) {
+    return max;
+  }
+
+  return parsed;
+}
 
 // Setup Middleware
 server.use(cors());
@@ -27,74 +62,225 @@ function createWindow() {
   // mainWindow.webContents.openDevTools();
 }
 
-/**
- * REUSABLE PRINT FUNCTION 
- * Handles rendering data into receipt.html and sending to physical printer
- */
-async function executePrint(printerName, receiptData = null) {
-  console.log(`Executing print for printer: "${printerName || 'Default'}"`);
-
-  // 58mm POS drivers usually demand a strict ~182px active area (48mm) to avoid side-clipping
-  const printWindow = new BrowserWindow({
+function createPrintWindow(windowWidth = 320) {
+  return new BrowserWindow({
     show: false,
-    width: 250,
+    width: Math.max(320, Math.ceil(windowWidth)),
+    height: 2200,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true
     }
   });
+}
 
-  return new Promise((resolve, reject) => {
-    printWindow.webContents.on('did-finish-load', async () => {
-      console.log("Receipt content loaded...");
+async function renderReceiptInWindow(printWindow, receiptData = null, renderScale = 1) {
+  await printWindow.loadFile('receipt.html');
 
-      if (receiptData) {
-        console.log("Injecting dynamic receipt data...");
-        const injectionScript = `
-          if (window.renderReceipt) {
-            window.renderReceipt(${JSON.stringify(receiptData)});
-          }
-        `;
-        await printWindow.webContents.executeJavaScript(injectionScript);
-      }
+  if (receiptData) {
+    const injectionScript = [
+      'if (window.renderReceipt) {',
+      `  window.renderReceipt(${JSON.stringify(receiptData)});`,
+      '}'
+    ].join('\n');
 
-      setTimeout(async () => {
-        try {
-          // Strictly measure the actual receipt container div, completely ignoring the invisible window's default height (which caused the 535px footer bug).
-          const heightPixels = await printWindow.webContents.executeJavaScript(`document.getElementById('receiptContent').offsetHeight + 5`);
-          
-          // Conversion: 1 CSS pixel (96 DPI) = 264.5833 Microns
-          const pageHeightMicrons = Math.ceil(heightPixels * 264.5833);
-          
-          console.log(`[POS Debug] Calculated HTML Height: ${heightPixels}px`);
-          console.log(`[POS Debug] Passing PageSize to Driver -> Width: 58000 microns, Height: ${pageHeightMicrons} microns`);
+    await printWindow.webContents.executeJavaScript(injectionScript);
+  }
 
-          printWindow.webContents.print({
-            silent: true,
-            deviceName: printerName || '',
-            margins: { marginType: 'none' },
-            printBackground: true,
-            pageSize: { width: 58000, height: pageHeightMicrons }
-          }, (success, failureReason) => {
-            if (!success) {
-              console.error("Print Failed:", failureReason);
-              reject(failureReason);
-            } else {
-              console.log("Print Success: Job queued to Windows spooler perfectly.");
-              resolve(true);
-            }
-            printWindow.close();
-          });
-        } catch (err) {
-          console.error("Critical error in print logic:", err);
-          reject(err);
-          printWindow.close();
+  await printWindow.webContents.executeJavaScript([
+    '(async () => {',
+    '  if (document.fonts && document.fonts.ready) {',
+    '    try {',
+    '      await document.fonts.ready;',
+    '    } catch (fontError) {',
+    '      console.warn(fontError);',
+    '    }',
+    '  }',
+    '  await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));',
+    '  return true;',
+    '})();'
+  ].join('\n'));
+
+  if (renderScale !== 1) {
+    await printWindow.webContents.executeJavaScript([
+      '(() => {',
+      '  const content = document.getElementById("receiptContent");',
+      '  if (!content) {',
+      '    return;',
+      '  }',
+      '  document.body.style.margin = "0";',
+      '  document.body.style.padding = "0";',
+      '  content.style.margin = "0";',
+      '  content.style.transformOrigin = "top left";',
+      `  content.style.transform = "scale(${renderScale})";`,
+      '})();'
+    ].join('\n'));
+
+    await printWindow.webContents.executeJavaScript('new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));');
+  }
+}
+
+async function measureReceipt(printWindow) {
+  return printWindow.webContents.executeJavaScript([
+    '(() => {',
+    '  const content = document.getElementById("receiptContent");',
+    '  if (!content) {',
+    '    throw new Error("receiptContent element not found.");',
+    '  }',
+    '  const rect = content.getBoundingClientRect();',
+    '  return {',
+    '    x: Math.max(0, Math.floor(rect.left)),',
+    '    y: Math.max(0, Math.floor(rect.top)),',
+    '    width: Math.max(1, Math.ceil(rect.width)),',
+    '    height: Math.max(1, Math.ceil(rect.height)),',
+    '    domHeight: Math.max(1, Math.ceil(content.offsetHeight))',
+    '  };',
+    '})();'
+  ].join('\n'));
+}
+
+async function resolvePrinterName(printerName) {
+  const requestedName = String(printerName || '').trim();
+  if (requestedName) {
+    return requestedName;
+  }
+
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return '';
+  }
+
+  try {
+    const printers = await mainWindow.webContents.getPrintersAsync();
+    const defaultPrinter = printers.find((printer) => printer.isDefault);
+    return defaultPrinter ? defaultPrinter.name : '';
+  } catch (error) {
+    console.warn('[Print] Failed to resolve default printer:', error);
+    return '';
+  }
+}
+
+async function executeGraphicPrint(printerName, receiptData = null) {
+  const printWindow = createPrintWindow(260);
+
+  try {
+    await renderReceiptInWindow(printWindow, receiptData, 1);
+    const measurements = await measureReceipt(printWindow);
+    const heightPixels = measurements.domHeight + 5;
+    const pageHeightMicrons = Math.ceil(heightPixels * 264.5833);
+
+    await new Promise((resolve, reject) => {
+      printWindow.webContents.print({
+        silent: true,
+        deviceName: printerName || '',
+        margins: { marginType: 'none' },
+        printBackground: true,
+        pageSize: { width: 58000, height: pageHeightMicrons }
+      }, (success, failureReason) => {
+        if (!success) {
+          reject(new Error(failureReason || 'Graphic print failed.'));
+          return;
         }
-      }, 500); 
+        resolve();
+      });
     });
 
-    printWindow.loadFile('receipt.html').catch(reject);
-  });
+    console.log(`[Print][Graphic] Success. Height=${heightPixels}px`);
+    return {
+      engine: 'graphic',
+      printerName: printerName || ''
+    };
+  } finally {
+    if (!printWindow.isDestroyed()) {
+      printWindow.close();
+    }
+  }
+}
+
+async function executeRawPrint(printerName, receiptData = null) {
+  if (process.platform !== 'win32') {
+    throw new Error('RAW ESC/POS mode is currently implemented only for Windows.');
+  }
+
+  const rawWindowWidth = Math.max(420, Math.ceil((220 * RAW_RENDER_SCALE) + 60));
+  const printWindow = createPrintWindow(rawWindowWidth);
+
+  try {
+    await renderReceiptInWindow(printWindow, receiptData, RAW_RENDER_SCALE);
+    let measurements = await measureReceipt(printWindow);
+
+    const requiredHeight = Math.max(320, Math.ceil(measurements.y + measurements.height + 20));
+    printWindow.setContentSize(rawWindowWidth, requiredHeight);
+    await printWindow.webContents.executeJavaScript('new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));');
+    measurements = await measureReceipt(printWindow);
+
+    const image = await printWindow.webContents.capturePage({
+      x: measurements.x,
+      y: measurements.y,
+      width: measurements.width,
+      height: measurements.height
+    });
+
+    const resizedImage = image.resize({
+      width: RAW_WIDTH_DOTS,
+      quality: 'best'
+    });
+    const imageSize = resizedImage.getSize();
+    const bitmap = resizedImage.toBitmap();
+
+    const escPosBuffer = buildEscPosRasterFromBitmap(bitmap, imageSize.width, imageSize.height, {
+      threshold: RAW_THRESHOLD,
+      chunkHeight: RAW_CHUNK_HEIGHT,
+      endFeedLines: RAW_END_FEED_LINES
+    });
+
+    const spoolResult = await sendRawToPrinterWindows({
+      printerName,
+      dataBuffer: escPosBuffer,
+      jobName: RAW_JOB_NAME
+    });
+
+    console.log(`[Print][RAW] Success. Image=${imageSize.width}x${imageSize.height}, bytes=${escPosBuffer.length}`);
+    return {
+      engine: 'raw',
+      printerName: spoolResult.printerName || printerName || '',
+      imageWidth: imageSize.width,
+      imageHeight: imageSize.height,
+      bytes: escPosBuffer.length
+    };
+  } finally {
+    if (!printWindow.isDestroyed()) {
+      printWindow.close();
+    }
+  }
+}
+
+/**
+ * REUSABLE PRINT FUNCTION 
+ * Handles rendering data into receipt.html and sending to physical printer
+ */
+async function executePrint(printerName, receiptData = null) {
+  const resolvedPrinterName = await resolvePrinterName(printerName);
+  console.log(`[Print] Mode=${PRINT_MODE}, printer="${resolvedPrinterName || 'Default'}"`);
+
+  if (PRINT_MODE === 'graphic') {
+    return executeGraphicPrint(resolvedPrinterName, receiptData);
+  }
+
+  if (PRINT_MODE === 'raw') {
+    return executeRawPrint(resolvedPrinterName, receiptData);
+  }
+
+  try {
+    return await executeRawPrint(resolvedPrinterName, receiptData);
+  } catch (rawError) {
+    console.warn(`[Print] RAW failed, fallback to graphic. Reason: ${rawError.message}`);
+    const graphicResult = await executeGraphicPrint(resolvedPrinterName, receiptData);
+    return {
+      ...graphicResult,
+      fallbackFrom: 'raw',
+      fallbackReason: rawError.message
+    };
+  }
 }
 
 // --- EXPRESS API ROUTES ---
@@ -114,14 +300,17 @@ server.post('/print', async (req, res) => {
   const { printer, data } = req.body;
   try {
     console.log("API: Received print request.");
-    await executePrint(printer, data);
+    const printResult = await executePrint(printer, data);
     res.json({ success: true, message: "Print job sent successfully" });
 
     // Notify the UI about the API activity
     if (mainWindow) {
+      const engineLabel = printResult?.fallbackFrom
+        ? `${printResult.engine} (fallback from ${printResult.fallbackFrom})`
+        : (printResult?.engine || PRINT_MODE);
       mainWindow.webContents.send('api-log', {
         type: 'success',
-        message: `Printed via API: ${data?.storeName || 'Receipt'}`
+        message: `Printed via API [${engineLabel}]: ${data?.storeName || 'Receipt'}`
       });
     }
   } catch (err) {
@@ -145,6 +334,7 @@ app.whenReady().then(() => {
   // Start the API Server
   server.listen(PORT, () => {
     console.log(`POS Printing API running at http://localhost:${PORT}`);
+    console.log(`[Print] Engine mode: ${PRINT_MODE}`);
     // We'll notify the renderer when it's ready in a bit
   });
 
