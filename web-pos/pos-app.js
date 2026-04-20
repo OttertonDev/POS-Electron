@@ -14,6 +14,7 @@ console.log("POS App v1.2 - Loading with Cloud Settings...");
 const db = getFirestore(app);
 
 const PLUGIN_URL = 'http://localhost:3001';
+const PRINT_STRATEGY = 'browser-first';
 
 // Receipt settings loaded from Firestore (populated on init)
 let receiptSettings = {
@@ -56,8 +57,8 @@ const statusText = pluginStatus.querySelector('.status-text');
  * Initialize Web POS
  */
 async function init() {
-    // Load receipt settings from Firestore first
-    await loadReceiptSettings();
+    // Do not block POS boot forever if Firestore is slow/unreachable.
+    await loadReceiptSettingsWithTimeout(2500);
     startProductSync();
 
     renderProducts();
@@ -78,6 +79,22 @@ async function init() {
     });
 
     printBtn.addEventListener('click', sendPrintJob);
+}
+
+async function loadReceiptSettingsWithTimeout(timeoutMs) {
+    let timerId;
+    try {
+        await Promise.race([
+            loadReceiptSettings(),
+            new Promise((resolve) => {
+                timerId = setTimeout(resolve, timeoutMs);
+            })
+        ]);
+    } finally {
+        if (timerId) {
+            clearTimeout(timerId);
+        }
+    }
 }
 
 function startProductSync() {
@@ -228,7 +245,7 @@ function updateCartUI() {
                 <div style="font-weight: 700;">฿${(item.price * item.qty).toFixed(2)}</div>
             </div>
         `).join('');
-        printBtn.disabled = !(pluginStatus.classList.contains('online'));
+        printBtn.disabled = false;
     }
 
     // Calculations
@@ -250,17 +267,257 @@ async function checkPluginConnection() {
         if (response.ok) {
             pluginStatus.classList.remove('offline');
             pluginStatus.classList.add('online');
-            statusText.innerText = 'Plugin Online';
-            if (cart.length > 0) printBtn.disabled = false;
+                        statusText.innerText = 'Plugin Online (Fallback Ready)';
         } else {
             throw new Error();
         }
     } catch (err) {
         pluginStatus.classList.remove('online');
         pluginStatus.classList.add('offline');
-        statusText.innerText = 'Plugin Offline';
-        printBtn.disabled = true;
+                statusText.innerText = 'Plugin Offline (Browser Print Active)';
     }
+}
+
+function escapeHtml(value) {
+        return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+}
+
+function toMultilineHtml(value) {
+        return escapeHtml(value).replace(/\n/g, '<br>');
+}
+
+function resolveAlign(value, fallback = 'center') {
+        const align = String(value || fallback).toLowerCase();
+        if (align === 'left' || align === 'right' || align === 'center') {
+                return align;
+        }
+        return fallback;
+}
+
+function buildReceiptPayload() {
+        const now = new Date();
+        const formattedDate = `${now.toLocaleDateString('th-TH')} ${now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}`;
+
+        return {
+                storeName: receiptSettings.storeName,
+                storeNameFontSize: receiptSettings.storeNameFontSize,
+                storeNameAlign: receiptSettings.storeNameAlign,
+                address: receiptSettings.address,
+                addressFontSize: receiptSettings.addressFontSize,
+                addressAlign: receiptSettings.addressAlign,
+                phone: receiptSettings.phone,
+                footer: receiptSettings.footer,
+                fontSize: receiptSettings.fontSize,
+                date: formattedDate,
+                items: cart.map(item => ({
+                        qty: `${item.qty}x`,
+                        name: item.name,
+                        price: (item.price * item.qty).toFixed(2)
+                })),
+                total: totalEl.innerText,
+                cash: totalEl.innerText,
+                change: '0.00'
+        };
+}
+
+    const PAPER_WIDTH_MM = 58;
+    const CONTENT_WIDTH_MM = 52;
+
+function buildBrowserReceiptHtml(data) {
+        const baseFontSize = Math.max(10, Math.min(16, Number(data.fontSize) || 13));
+        const storeNameFontSize = Math.max(12, Math.min(22, Number(data.storeNameFontSize) || 16));
+        const addressFontSize = Math.max(9, Math.min(16, Number(data.addressFontSize) || 11));
+
+        const storeNameAlign = resolveAlign(data.storeNameAlign, 'center');
+        const addressAlign = resolveAlign(data.addressAlign, 'center');
+
+        const itemRows = (data.items || []).map((item) => `
+                <div class="item-row">
+                        <div class="item-qty">${escapeHtml(item.qty || '1x')}</div>
+                        <div class="item-name">${escapeHtml(item.name || '---')}</div>
+                        <div class="item-price">${escapeHtml(item.price || '0.00')}</div>
+                </div>
+        `).join('');
+
+        return `<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>Receipt Print</title>
+    <style>
+        @page { size: ${PAPER_WIDTH_MM}mm 160mm; margin: 0; }
+        * { box-sizing: border-box; }
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: ${PAPER_WIDTH_MM}mm !important;
+            min-width: ${PAPER_WIDTH_MM}mm !important;
+            max-width: ${PAPER_WIDTH_MM}mm !important;
+        }
+        body {
+            width: ${PAPER_WIDTH_MM}mm;
+            margin: 0 auto;
+            color: #000;
+            font-family: Tahoma, Prompt, "Noto Sans Thai", sans-serif;
+            font-size: ${baseFontSize}px;
+            line-height: 1.35;
+            -webkit-font-smoothing: none;
+            text-rendering: geometricPrecision;
+            overflow: hidden;
+        }
+        @media print {
+            html, body {
+                width: ${PAPER_WIDTH_MM}mm !important;
+                min-width: ${PAPER_WIDTH_MM}mm !important;
+                max-width: ${PAPER_WIDTH_MM}mm !important;
+                transform: none !important;
+            }
+            body {
+                margin: 0 auto !important;
+                writing-mode: horizontal-tb !important;
+            }
+            .receipt {
+                page-break-after: avoid;
+            }
+        }
+        .receipt {
+            width: ${CONTENT_WIDTH_MM}mm;
+            margin: 0 auto;
+            padding: 0;
+            padding-right: 0.4mm;
+        }
+        .header { text-align: center; margin-bottom: 8px; }
+        .store-name {
+            font-size: ${storeNameFontSize}px;
+            font-weight: 700;
+            text-align: ${storeNameAlign};
+            margin-bottom: 3px;
+            white-space: pre-line;
+            word-break: break-word;
+        }
+        .address, .phone {
+            text-align: ${addressAlign};
+            font-size: ${addressFontSize}px;
+            white-space: pre-line;
+            word-break: break-word;
+        }
+        .date {
+            text-align: center;
+            font-size: 10px;
+            margin-top: 3px;
+        }
+        .divider {
+            border-top: 1px dashed #000;
+            margin: 6px 0;
+        }
+        .item-row {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 2px;
+            gap: 1px;
+        }
+        .item-qty { width: 14%; }
+        .item-name { width: 54%; word-break: break-word; }
+        .item-price { width: 32%; text-align: right; padding-right: 0.2mm; }
+        .totals-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+        }
+        .totals-row strong { font-weight: 700; }
+        .footer {
+            margin-top: 8px;
+            text-align: center;
+            white-space: pre-line;
+            font-size: ${Math.max(10, baseFontSize - 1)}px;
+            word-break: break-word;
+        }
+    </style>
+</head>
+<body>
+    <div class="receipt">
+        <div class="header">
+            <div class="store-name">${toMultilineHtml(data.storeName || "Otterton's Point of Sale")}</div>
+            <div class="address">${toMultilineHtml(data.address || '')}</div>
+            <div class="phone">โทร: ${escapeHtml(data.phone || '-')}</div>
+            <div class="date">วันที่: ${escapeHtml(data.date || '')}</div>
+        </div>
+
+        <div class="divider"></div>
+        ${itemRows || '<div class="item-row"><div class="item-name">No items</div></div>'}
+        <div class="divider"></div>
+
+        <div class="totals-row"><span>รวมเงิน (Total)</span><strong>${escapeHtml(data.total || '0.00')}</strong></div>
+        <div class="totals-row"><span>เงินสด (Cash)</span><strong>${escapeHtml(data.cash || '0.00')}</strong></div>
+        <div class="totals-row"><span>เงินทอน (Change)</span><strong>${escapeHtml(data.change || '0.00')}</strong></div>
+
+        <div class="divider"></div>
+        <div class="footer">${toMultilineHtml(data.footer || 'ขอบคุณที่ใช้บริการ')}</div>
+    </div>
+
+    <script>
+        function applyDynamicPageSize() {
+            const receipt = document.querySelector('.receipt');
+            if (!receipt) {
+                return;
+            }
+
+            const pxToMm = 25.4 / 96;
+            const heightPx = Math.ceil(receipt.getBoundingClientRect().height);
+            const targetHeightMm = Math.max(52, Math.min(500, (heightPx * pxToMm) + 0.6));
+
+            const pageStyle = document.createElement('style');
+            pageStyle.id = 'dynamic-page-size';
+            pageStyle.textContent = '@page { size: ${PAPER_WIDTH_MM}mm ' + targetHeightMm.toFixed(2) + 'mm; margin: 0; }';
+            document.head.appendChild(pageStyle);
+        }
+
+        window.addEventListener('load', function () {
+            setTimeout(function () {
+                applyDynamicPageSize();
+                window.focus();
+                window.print();
+            }, 180);
+        });
+
+        window.addEventListener('afterprint', function () {
+            setTimeout(function () {
+                window.close();
+            }, 80);
+        });
+    </script>
+</body>
+</html>`;
+}
+
+function printInBrowser(receiptPayload) {
+        const printWindow = window.open('', '_blank', 'width=460,height=900');
+        if (!printWindow) {
+                return false;
+        }
+
+        printWindow.document.open();
+        printWindow.document.write(buildBrowserReceiptHtml(receiptPayload));
+        printWindow.document.close();
+        return true;
+}
+
+async function sendPrintToPlugin(receiptPayload) {
+        const res = await fetch(`${PLUGIN_URL}/print`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ data: receiptPayload })
+        });
+
+        const result = await res.json();
+        if (!result.success) {
+                throw new Error(result.error || 'Plugin print failed.');
+        }
 }
 
 /**
@@ -269,57 +526,46 @@ async function checkPluginConnection() {
 async function sendPrintJob() {
     const originalText = printBtn.innerHTML;
     printBtn.disabled = true;
-    printBtn.innerHTML = 'Sending to printer...';
+    printBtn.innerHTML = 'Preparing receipt...';
 
-    const receiptData = {
-        data: {
-            // Use settings loaded from Firestore (via Receipt Editor)
-            storeName: receiptSettings.storeName,
-            storeNameFontSize: receiptSettings.storeNameFontSize,
-            storeNameAlign: receiptSettings.storeNameAlign,
-            address: receiptSettings.address,
-            addressFontSize: receiptSettings.addressFontSize,
-            addressAlign: receiptSettings.addressAlign,
-            phone: receiptSettings.phone,
-            footer: receiptSettings.footer,
-            fontSize: receiptSettings.fontSize,
-            items: cart.map(item => ({
-                qty: `${item.qty}x`,
-                name: item.name,
-                price: (item.price * item.qty).toFixed(2)
-            })),
-            total: totalEl.innerText,
-            cash: totalEl.innerText,
-            change: "0.00"
-        }
-    };
+    const receiptPayload = buildReceiptPayload();
 
     try {
-        const res = await fetch(`${PLUGIN_URL}/print`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(receiptData)
-        });
+        let printedVia = '';
 
-        const result = await res.json();
-        if (result.success) {
-            const soldItems = cart.map((item) => ({ id: item.id, qty: item.qty }));
-
-            try {
-                await decrementInventoryAfterSale(soldItems);
-            } catch (inventoryErr) {
-                console.warn('Inventory sync failed after print:', inventoryErr);
-                alert('Print completed, but inventory sync failed. Please review stock page.');
+        if (PRINT_STRATEGY === 'browser-first') {
+            printBtn.innerHTML = 'Opening print dialog...';
+            const browserPrinted = printInBrowser(receiptPayload);
+            if (browserPrinted) {
+                printedVia = 'browser';
             }
-
-            alert('Print Successful!');
-            cart = [];
-            updateCartUI();
-        } else {
-            alert('Print Error: ' + result.error);
         }
+
+        if (!printedVia) {
+            printBtn.innerHTML = 'Sending to plugin...';
+            await sendPrintToPlugin(receiptPayload);
+            printedVia = 'plugin';
+        }
+
+        const soldItems = cart.map((item) => ({ id: item.id, qty: item.qty }));
+
+        try {
+            await decrementInventoryAfterSale(soldItems);
+        } catch (inventoryErr) {
+            console.warn('Inventory sync failed after print:', inventoryErr);
+            alert('Print completed, but inventory sync failed. Please review stock page.');
+        }
+
+        if (printedVia === 'browser') {
+            alert('Browser print dialog opened. Please complete printing from your browser dialog.');
+        } else {
+            alert('Print sent via local plugin successfully.');
+        }
+
+        cart = [];
+        updateCartUI();
     } catch (err) {
-        alert('Could not connect to printer plugin.');
+        alert(`Print Error: ${err.message || err}`);
     } finally {
         printBtn.innerHTML = originalText;
         printBtn.disabled = (cart.length === 0);

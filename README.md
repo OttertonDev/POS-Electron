@@ -30,7 +30,11 @@ Use environment variables before `npm start`:
 - `POS_PRINT_MODE`: `hybrid` (default), `raw`, or `graphic`
 - `POS_RAW_RENDER_SCALE`: render supersampling factor (default `2`)
 - `POS_RAW_THRESHOLD`: monochrome threshold `1-254` (default `142`)
-- `POS_RAW_CHUNK_HEIGHT`: GS v 0 chunk rows `1-255` (default `128`)
+- `POS_RAW_CHUNK_HEIGHT`: GS v 0 chunk rows `1-255` (default `64`)
+- `POS_RAW_RASTER_MODE`: GS v 0 mode (`48` default for clone compatibility; other valid values: `0-3`, `48-51`)
+- `POS_RAW_IMAGE_MODE`: `raster` (GS v 0) or `bit-image` (ESC `*`) for compatibility fallback
+- `POS_RAW_CHUNK_SEPARATOR`: `auto` (default), `none`, `lf`, or `crlf`
+- `POS_RAW_LF_BETWEEN_CHUNKS`: legacy alias for separator mode (`on` => `lf`, `off` => `none`)
 - `POS_RAW_END_FEED_LINES`: tail feed lines after print (default `1`)
 - `POS_RAW_WIDTH_DOTS`: target raster width dots (default `384` for most 58mm heads)
 - `POS_RAW_JOB_NAME`: spool job label
@@ -39,4 +43,4 @@ Use environment variables before `npm start`:
 
 - RAW mode is implemented for Windows queue printing.
 - Hybrid mode is recommended for production because it preserves fallback resilience.
-- No line-feed is inserted between raster chunks to reduce chopped-line issues on OEM thermal units.
+- Vozy/V50-style clone firmware may require CRLF between raster chunks or `bit-image` protocol.

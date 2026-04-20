@@ -3,7 +3,7 @@ const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const { buildEscPosRasterFromBitmap } = require('./escpos-raster');
+const { buildEscPosRasterFromBitmap, buildEscPosBitImageFromBitmap } = require('./escpos-raster');
 const { sendRawToPrinterWindows } = require('./windows-raw-spool');
 
 let mainWindow;
@@ -13,9 +13,14 @@ const PORT = 3001;
 const PRINT_MODE = normalizePrintMode(process.env.POS_PRINT_MODE || 'hybrid');
 const RAW_RENDER_SCALE = readNumber(process.env.POS_RAW_RENDER_SCALE, 2, 1, 4);
 const RAW_THRESHOLD = Math.round(readNumber(process.env.POS_RAW_THRESHOLD, 142, 1, 254));
-const RAW_CHUNK_HEIGHT = Math.round(readNumber(process.env.POS_RAW_CHUNK_HEIGHT, 128, 1, 255));
+const RAW_CHUNK_HEIGHT = Math.round(readNumber(process.env.POS_RAW_CHUNK_HEIGHT, 64, 1, 255));
 const RAW_END_FEED_LINES = Math.round(readNumber(process.env.POS_RAW_END_FEED_LINES, 1, 0, 8));
-const RAW_WIDTH_DOTS = Math.round(readNumber(process.env.POS_RAW_WIDTH_DOTS, 384, 8, 576));
+const RAW_WIDTH_DOTS = Math.round(readNumber(process.env.POS_RAW_WIDTH_DOTS || process.env.OS_RAW_WIDTH_DOTS, 384, 8, 576));
+const RAW_RASTER_MODE = Math.round(readNumber(process.env.POS_RAW_RASTER_MODE, 48, 0, 51));
+const RAW_IMAGE_MODE = normalizeRawImageMode(process.env.POS_RAW_IMAGE_MODE || 'raster');
+const RAW_CHUNK_SEPARATOR_MODE = normalizeChunkSeparatorMode(
+  process.env.POS_RAW_CHUNK_SEPARATOR || process.env.POS_RAW_LF_BETWEEN_CHUNKS || 'auto'
+);
 const RAW_JOB_NAME = process.env.POS_RAW_JOB_NAME || 'Otterton POS RAW Receipt';
 
 function normalizePrintMode(mode) {
@@ -24,6 +29,54 @@ function normalizePrintMode(mode) {
     return lowered;
   }
   return 'hybrid';
+}
+
+function normalizeRawImageMode(mode) {
+  const lowered = String(mode || 'raster').toLowerCase();
+  if (lowered === 'raster') {
+    return 'raster';
+  }
+
+  if (
+    lowered === 'bit-image' ||
+    lowered === 'bitimage' ||
+    lowered === 'esc-star' ||
+    lowered === 'esc*'
+  ) {
+    return 'bit-image';
+  }
+
+  return 'raster';
+}
+
+function normalizeChunkSeparatorMode(mode) {
+  const lowered = String(mode || 'auto').toLowerCase();
+  if (lowered === '1' || lowered === 'true' || lowered === 'yes' || lowered === 'on' || lowered === 'lf') {
+    return 'lf';
+  }
+
+  if (lowered === 'crlf') {
+    return 'crlf';
+  }
+
+  if (lowered === '0' || lowered === 'false' || lowered === 'no' || lowered === 'off' || lowered === 'none') {
+    return 'none';
+  }
+
+  return 'auto';
+}
+
+function resolveChunkSeparatorMode(printerName) {
+  if (RAW_CHUNK_SEPARATOR_MODE === 'lf' || RAW_CHUNK_SEPARATOR_MODE === 'crlf' || RAW_CHUNK_SEPARATOR_MODE === 'none') {
+    return RAW_CHUNK_SEPARATOR_MODE;
+  }
+
+  const printer = String(printerName || '').toLowerCase();
+  if (printer.includes('vozy') || printer.includes('voxy') || printer.includes('v50')) {
+    return 'crlf';
+  }
+
+  return 'none';
 }
 
 function readNumber(value, fallback, min, max) {
@@ -226,12 +279,22 @@ async function executeRawPrint(printerName, receiptData = null) {
     });
     const imageSize = resizedImage.getSize();
     const bitmap = resizedImage.toBitmap();
+    const chunkSeparatorMode = resolveChunkSeparatorMode(printerName);
 
-    const escPosBuffer = buildEscPosRasterFromBitmap(bitmap, imageSize.width, imageSize.height, {
-      threshold: RAW_THRESHOLD,
-      chunkHeight: RAW_CHUNK_HEIGHT,
-      endFeedLines: RAW_END_FEED_LINES
-    });
+    const escPosBuffer = RAW_IMAGE_MODE === 'bit-image'
+      ? buildEscPosBitImageFromBitmap(bitmap, imageSize.width, imageSize.height, {
+          threshold: RAW_THRESHOLD,
+          endFeedLines: RAW_END_FEED_LINES,
+          density: 33,
+          rowSeparator: chunkSeparatorMode === 'none' ? 'lf' : chunkSeparatorMode
+        })
+      : buildEscPosRasterFromBitmap(bitmap, imageSize.width, imageSize.height, {
+          threshold: RAW_THRESHOLD,
+          chunkHeight: RAW_CHUNK_HEIGHT,
+          endFeedLines: RAW_END_FEED_LINES,
+          rasterMode: RAW_RASTER_MODE,
+          chunkSeparator: chunkSeparatorMode
+        });
 
     const spoolResult = await sendRawToPrinterWindows({
       printerName,
@@ -239,7 +302,7 @@ async function executeRawPrint(printerName, receiptData = null) {
       jobName: RAW_JOB_NAME
     });
 
-    console.log(`[Print][RAW] Success. Image=${imageSize.width}x${imageSize.height}, bytes=${escPosBuffer.length}`);
+    console.log(`[Print][RAW] Success. Image=${imageSize.width}x${imageSize.height}, bytes=${escPosBuffer.length}, protocol=${RAW_IMAGE_MODE}, mode=${RAW_RASTER_MODE}, chunkSep=${chunkSeparatorMode}`);
     return {
       engine: 'raw',
       printerName: spoolResult.printerName || printerName || '',
@@ -335,6 +398,7 @@ app.whenReady().then(() => {
   server.listen(PORT, () => {
     console.log(`POS Printing API running at http://localhost:${PORT}`);
     console.log(`[Print] Engine mode: ${PRINT_MODE}`);
+    console.log(`[Print] RAW config: protocol=${RAW_IMAGE_MODE}, width=${RAW_WIDTH_DOTS}, scale=${RAW_RENDER_SCALE}, threshold=${RAW_THRESHOLD}, chunk=${RAW_CHUNK_HEIGHT}, mode=${RAW_RASTER_MODE}, chunkSep=${RAW_CHUNK_SEPARATOR_MODE}, feed=${RAW_END_FEED_LINES}`);
     // We'll notify the renderer when it's ready in a bit
   });
 
