@@ -23,6 +23,10 @@
                 </div>
             </div>
             <div class="top-actions">
+                <div class="service-status service-status-offline" id="serviceStatus">
+                    <span class="service-dot"></span>
+                    <span class="service-status-text">Print Service Offline</span>
+                </div>
                 <span class="date-pill" id="currentDate">--/--/----</span>
             </div>
         </header>
@@ -84,6 +88,8 @@
                         <span class="total-value" id="total">0.00</span>
                     </div>
                 </div>
+
+                <p class="checkout-note" id="checkoutNote">Print service must be online before the sale can complete.</p>
 
                 <button class="btn-checkout" id="checkoutBtn" disabled>
                     <span class="btn-icon">OK</span> Complete Sale
