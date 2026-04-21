@@ -8,9 +8,14 @@ import {
     serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
 
-console.log("POS App v1.2 - Checkout mode");
+console.log("POS App v1.3 - Silent print checkout mode");
 
 const db = getFirestore(app);
+
+const PRINT_SERVICE_URL = "http://127.0.0.1:3011";
+const SERVICE_POLL_INTERVAL_MS = 5000;
+const DEFAULT_STORE_NAME = "Otterton's Point of Sale";
+const DEFAULT_FOOTER = "ขอบคุณที่ใช้บริการ";
 
 const FALLBACK_PRODUCTS = [
     { id: "local-1", name: "Iced Americano", price: 65, category: "coffee", img: "https://images.unsplash.com/photo-1517701604599-bb29b565090c?auto=format&fit=crop&q=80&w=200", stockQty: 99, reorderLevel: 5 },
@@ -24,6 +29,8 @@ const FALLBACK_PRODUCTS = [
 let products = [...FALLBACK_PRODUCTS];
 let cart = [];
 let currentCategory = "coffee";
+let serviceReady = false;
+let saleInFlight = false;
 
 const productGrid = document.getElementById("productGrid");
 const cartList = document.getElementById("cartList");
@@ -31,6 +38,9 @@ const subtotalEl = document.getElementById("subtotal");
 const taxEl = document.getElementById("tax");
 const totalEl = document.getElementById("total");
 const checkoutBtn = document.getElementById("checkoutBtn");
+const serviceStatus = document.getElementById("serviceStatus");
+const serviceStatusText = serviceStatus?.querySelector(".service-status-text");
+const checkoutNote = document.getElementById("checkoutNote");
 
 async function init() {
     startProductSync();
@@ -49,6 +59,63 @@ async function init() {
     });
 
     checkoutBtn?.addEventListener("click", completeSale);
+
+    await refreshPrintServiceStatus();
+    window.setInterval(refreshPrintServiceStatus, SERVICE_POLL_INTERVAL_MS);
+}
+
+function setServiceStatus(state, message, note) {
+    if (!serviceStatus || !serviceStatusText) {
+        return;
+    }
+
+    serviceStatus.classList.remove(
+        "service-status-ready",
+        "service-status-printing",
+        "service-status-error",
+        "service-status-offline"
+    );
+    serviceStatus.classList.add(`service-status-${state}`);
+    serviceStatusText.textContent = message;
+
+    if (checkoutNote) {
+        checkoutNote.textContent = note;
+    }
+}
+
+async function refreshPrintServiceStatus() {
+    if (saleInFlight) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${PRINT_SERVICE_URL}/health`);
+        const result = await response.json();
+        serviceReady = Boolean(result.success);
+
+        if (serviceReady) {
+            setServiceStatus(
+                "ready",
+                "Print Service Ready",
+                `Ready to print via ${result.printerName || "configured printer"}.`
+            );
+        } else {
+            setServiceStatus(
+                "offline",
+                "Print Service Needs Setup",
+                result.message || "Configure the local silent print service before completing the sale."
+            );
+        }
+    } catch (error) {
+        serviceReady = false;
+        setServiceStatus(
+            "offline",
+            "Print Service Offline",
+            "Start the local silent print service before completing the sale."
+        );
+    } finally {
+        updateCartUI();
+    }
 }
 
 function startProductSync() {
@@ -133,6 +200,10 @@ function renderProducts() {
 }
 
 window.addToCart = function(id) {
+    if (saleInFlight) {
+        return;
+    }
+
     const product = products.find((item) => item.id === id);
     if (!product) {
         return;
@@ -162,7 +233,6 @@ function updateCartUI() {
                 <p>Order is empty</p>
             </div>
         `;
-        checkoutBtn.disabled = true;
     } else {
         cartList.innerHTML = cart.map((item) => `
             <div class="cart-item">
@@ -173,7 +243,6 @@ function updateCartUI() {
                 <div style="font-weight: 700;">THB ${(item.price * item.qty).toFixed(2)}</div>
             </div>
         `).join("");
-        checkoutBtn.disabled = false;
     }
 
     const subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
@@ -183,26 +252,94 @@ function updateCartUI() {
     subtotalEl.innerText = subtotal.toFixed(2);
     taxEl.innerText = tax.toFixed(2);
     totalEl.innerText = total.toFixed(2);
+
+    checkoutBtn.disabled = cart.length === 0 || saleInFlight || !serviceReady;
+}
+
+function buildReceiptPayload() {
+    const subtotal = subtotalEl.innerText;
+    const tax = taxEl.innerText;
+    const total = totalEl.innerText;
+    const now = new Date();
+
+    return {
+        storeName: DEFAULT_STORE_NAME,
+        date: `${now.toLocaleDateString("th-TH")} ${now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}`,
+        items: cart.map((item) => ({
+            qty: `${item.qty}x`,
+            name: item.name,
+            price: (item.price * item.qty).toFixed(2)
+        })),
+        subtotal,
+        tax,
+        total,
+        cash: total,
+        change: "0.00",
+        footer: DEFAULT_FOOTER
+    };
+}
+
+async function sendPrintRequest(payload) {
+    const response = await fetch(`${PRINT_SERVICE_URL}/print`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+    });
+
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Print service rejected the receipt.");
+    }
 }
 
 async function completeSale() {
+    if (saleInFlight) {
+        return;
+    }
+
+    if (!serviceReady) {
+        alert("Print service is offline. Start the local print service before completing the sale.");
+        return;
+    }
+
+    saleInFlight = true;
     const soldItems = cart.map((item) => ({ id: item.id, qty: item.qty }));
     const originalText = checkoutBtn.innerHTML;
 
+    setServiceStatus("printing", "Printing Receipt", "Sending receipt to the local silent print service.");
     checkoutBtn.disabled = true;
-    checkoutBtn.innerHTML = '<span class="btn-icon">...</span> Completing Sale';
+    checkoutBtn.innerHTML = '<span class="btn-icon">...</span> Printing Receipt';
 
     try {
+        const payload = buildReceiptPayload();
+        await sendPrintRequest(payload);
+
+        checkoutBtn.innerHTML = '<span class="btn-icon">...</span> Updating Inventory';
         await decrementInventoryAfterSale(soldItems);
+
         cart = [];
+        serviceReady = true;
+        setServiceStatus("ready", "Print Service Ready", "Receipt printed and sale completed.");
         updateCartUI();
-        alert("Sale completed.");
+        alert("Receipt printed and sale completed.");
     } catch (error) {
-        console.warn("Inventory sync failed after sale:", error);
-        alert("Could not complete the sale. Please review stock and try again.");
+        console.warn("Complete sale failed:", error);
+        const errorMessage = error.message || "Could not complete the sale.";
+        const inventoryFailure = errorMessage.includes("inventory");
+
+        serviceReady = inventoryFailure ? serviceReady : false;
+        setServiceStatus(
+            "error",
+            inventoryFailure ? "Inventory Update Failed" : "Print Failed",
+            errorMessage
+        );
+        alert(errorMessage);
     } finally {
+        saleInFlight = false;
         checkoutBtn.innerHTML = originalText;
-        checkoutBtn.disabled = cart.length === 0;
+        await refreshPrintServiceStatus();
     }
 }
 
@@ -214,7 +351,7 @@ async function decrementInventoryAfterSale(soldItems) {
         await runTransaction(db, async (transaction) => {
             const snap = await transaction.get(productRef);
             if (!snap.exists()) {
-                return;
+                throw new Error("Printed receipt, but inventory update failed because an item was missing.");
             }
 
             const currentQty = Math.max(0, Math.floor(Number(snap.data().stockQty) || 0));
