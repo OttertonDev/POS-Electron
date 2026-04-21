@@ -142,7 +142,7 @@ async function enforceRoleAccess(user) {
         return;
     }
 
-    if ((page === 'stock' || page === 'receipt-editor') && !state.isAdmin) {
+    if (page === 'stock' && !state.isAdmin) {
         window.location.replace('index.html?reason=permission');
     }
 }

@@ -170,43 +170,6 @@ body {
     color: var(--text-dark);
 }
 
-.sidebar-footer {
-    margin-top: 16px;
-}
-
-.status-indicator {
-    background: #fee2e2;
-    color: #991b1b;
-    padding: 12px 14px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 0.82rem;
-    font-weight: 600;
-}
-
-.status-indicator.online {
-    background: #dcfce7;
-    color: #166534;
-    --pulse-color: rgba(34, 197, 94, 0.4);
-}
-
-.pulse {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: currentColor;
-    box-shadow: 0 0 0 0 var(--pulse-color);
-    animation: pulse-ring 1.5s infinite;
-}
-
-@keyframes pulse-ring {
-    0% { box-shadow: 0 0 0 0 var(--pulse-color); }
-    70% { box-shadow: 0 0 0 10px rgba(0, 0, 0, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); }
-}
-
 .pos-products-panel {
     padding: 24px;
     min-height: 650px;
@@ -342,7 +305,7 @@ body {
     font-size: 1.2rem;
 }
 
-.btn-print {
+.btn-checkout {
     width: 100%;
     background-color: var(--primary-blue);
     color: white;
@@ -359,8 +322,8 @@ body {
     transition: transform 0.2s, opacity 0.2s;
 }
 
-.btn-print:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn-print:hover:not(:disabled) {
+.btn-checkout:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-checkout:hover:not(:disabled) {
     opacity: 0.94;
     transform: translateY(-1px);
 }

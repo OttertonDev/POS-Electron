@@ -1,20 +1,21 @@
 {
-  "name": "pos-electron-printing",
+  "name": "pos-electron-shell",
   "version": "1.0.0",
-  "description": "Demo of 58mm Thermal Graphic printing using Electron",
+  "description": "Electron shell for the POS project",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "demo:silent-print": "node demo/silent-print-bridge.js",
+    "demo:thai-print": "node demo/thai-print-demo.js",
+    "print-service:start": "node service/server.js",
+    "print-service:health": "node service/scripts/check-health.js",
+    "print-service:test": "node service/scripts/test-print.js",
+    "print-service:encoder-check": "node service/scripts/encoder-smoke.js"
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
     "electron": "^41.2.1"
   },
-  "dependencies": {
-    "body-parser": "^2.2.2",
-    "cors": "^2.8.6",
-    "electron-pos-printer": "^1.3.8",
-    "express": "^5.2.1"
-  }
+  "dependencies": {}
 }

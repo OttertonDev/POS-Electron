@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Silent Printer Demo</title>
+  <style>
+    :root {
+      --bg: #f3f6fb;
+      --panel: #ffffff;
+      --text: #102033;
+      --muted: #61738a;
+      --border: #d7e0ea;
+      --accent: #0f766e;
+      --code: #0b1220;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, #ffffff 0%, transparent 32%),
+        linear-gradient(180deg, #eef6ff 0%, var(--bg) 100%);
+      padding: 24px;
+    }
+
+    .wrap {
+      max-width: 1080px;
+      margin: 0 auto;
+      display: grid;
+      gap: 18px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 22px;
+      box-shadow: 0 18px 40px rgba(16, 32, 51, 0.08);
+    }
+
+    h1, h2 {
+      margin: 0 0 12px;
+    }
+
+    p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 18px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin: 14px 0 8px;
+    }
+
+    input, textarea, select, button {
+      width: 100%;
+      font: inherit;
+      border-radius: 14px;
+    }
+
+    input, textarea, select {
+      border: 1px solid var(--border);
+      padding: 12px 14px;
+      background: #fbfdff;
+    }
+
+    textarea {
+      min-height: 140px;
+      resize: vertical;
+    }
+
+    button {
+      border: 0;
+      background: var(--accent);
+      color: white;
+      padding: 14px 16px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 16px;
+    }
+
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: #d7e3f4;
+      background: var(--code);
+      border-radius: 16px;
+      padding: 16px;
+      min-height: 240px;
+      overflow: auto;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .chip {
+      background: #ecfeff;
+      color: #155e75;
+      border: 1px solid #bae6fd;
+      padding: 8px 10px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    @media (max-width: 860px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="panel">
+      <h1>Website to Silent Printer Demo</h1>
+      <p>
+        This demo page behaves like a website frontend. It sends a receipt payload to a local bridge at
+        <code>http://127.0.0.1:3010/print-demo</code>. The bridge does not print for real; it shows what the local
+        process would generate for a silent printer flow.
+      </p>
+      <div class="chips">
+        <span class="chip">Website</span>
+        <span class="chip">Localhost Bridge</span>
+        <span class="chip">ESC/POS Preview</span>
+        <span class="chip">Thai Safety Notes</span>
+      </div>
+    </section>
+
+    <div class="grid">
+      <section class="panel">
+        <label for="mode">Demo mode</label>
+        <select id="mode">
+          <option value="escpos-text-demo">ESC/POS text demo</option>
+          <option value="raster-safe-plan">Raster-safe Thai plan</option>
+        </select>
+
+        <label for="storeName">Store name</label>
+        <input id="storeName" value="Otterton Cafe">
+
+        <label for="footer">Footer</label>
+        <input id="footer" value="ขอบคุณที่ใช้บริการ">
+
+        <label for="items">Items JSON</label>
+        <textarea id="items">[
+  { "qty": "1x", "name": "Americano", "price": "65.00" },
+  { "qty": "1x", "name": "ชาไทย", "price": "55.00" }
+]</textarea>
+
+        <label for="total">Total</label>
+        <input id="total" value="120.00">
+
+        <button id="sendBtn">Send to Local Bridge</button>
+      </section>
+
+      <section class="panel">
+        <h2>Bridge response</h2>
+        <pre id="output">Waiting for request...</pre>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const output = document.getElementById("output");
+    const sendBtn = document.getElementById("sendBtn");
+
+    sendBtn.addEventListener("click", async () => {
+      sendBtn.disabled = true;
+      sendBtn.textContent = "Sending...";
+
+      try {
+        const items = JSON.parse(document.getElementById("items").value);
+        const payload = {
+          storeName: document.getElementById("storeName").value,
+          footer: document.getElementById("footer").value,
+          total: document.getElementById("total").value,
+          items
+        };
+
+        const response = await fetch("http://127.0.0.1:3010/print-demo", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            mode: document.getElementById("mode").value,
+            data: payload
+          })
+        });
+
+        const result = await response.json();
+        output.textContent = JSON.stringify(result, null, 2);
+      } catch (error) {
+        output.textContent = JSON.stringify({
+          success: false,
+          error: error.message
+        }, null, 2);
+      } finally {
+        sendBtn.disabled = false;
+        sendBtn.textContent = "Send to Local Bridge";
+      }
+    });
+  </script>
+</body>
+</html>
