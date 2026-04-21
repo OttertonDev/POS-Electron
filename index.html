@@ -1,91 +1,75 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>OTTERTON'S PRINTER PLUGIN</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Otterton POS Desktop</title>
   <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      padding: 20px;
-      background: #f0f2f5;
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --accent: #1d4ed8;
+      --border: #dbe3f0;
     }
 
-    .card {
-      background: white;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      max-width: 500px;
-      margin: 0 auto;
-    }
-
-    h1 {
-      font-size: 20px;
-      color: #333;
-    }
-
-    select,
-    button {
-      padding: 10px;
-      font-size: 14px;
-      width: 100%;
-      margin-top: 10px;
-      border-radius: 4px;
-      border: 1px solid #ccc;
+    * {
       box-sizing: border-box;
     }
 
-    button {
-      background: #007bff;
-      color: white;
-      border: none;
-      cursor: pointer;
-      font-weight: bold;
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: radial-gradient(circle at top, #ffffff 0%, var(--bg) 58%);
+      color: var(--text);
+    }
+
+    .panel {
+      width: min(560px, 100%);
+      padding: 32px;
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      background: var(--panel);
+      box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08);
+    }
+
+    h1 {
+      margin: 0 0 12px;
+      font-size: 2rem;
+    }
+
+    p {
+      margin: 0;
+      line-height: 1.6;
+      color: var(--muted);
+    }
+
+    .badge {
+      display: inline-flex;
       margin-top: 20px;
-    }
-
-    button:hover {
-      background: #0056b3;
-    }
-
-    #status {
-      margin-top: 15px;
-      font-size: 14px;
-      text-align: center;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: #dbeafe;
+      color: var(--accent);
+      font-weight: 600;
+      font-size: 0.92rem;
     }
   </style>
 </head>
-
 <body>
-  <div class="card">
-    <h1>Receipt Printer (Hybrid RAW Mode)</h1>
-    <p>Select your thermal printer and click print. The plugin tries RAW ESC/POS raster first for tighter tail control,
-      then automatically falls back to Windows graphic printing if RAW fails.</p>
-
-    <div id="apiStatus"
-      style="background: #cbffd8; padding: 10px; border-radius: 4px; margin-bottom: 15px; border-left: 4px solid #00ff40; font-size: 13px;">
-      <b>API Status:</b> Online at <code id="apiUrl">http://localhost:3001</code>
-    </div>
-
-    <label for="printerSelect">Select Printer (Local & API):</label>
-    <select id="printerSelect">
-      <option value="">Loading printers...</option>
-    </select>
-
-    <button id="printBtn">Print Manual Sample</button>
-    <div id="status"></div>
-  </div>
-
-  <div class="card" style="margin-top: 20px;">
-    <h2>API Log</h2>
-    <div id="logList"
-      style="height: 150px; overflow-y: auto; border: 1px solid #eee; padding: 10px; font-size: 12px; background: #fafafa; border-radius: 4px;">
-      <div style="color: #888;">Waiting for API activity...</div>
-    </div>
-  </div>
-
-  <script src="./renderer.js"></script>
+  <main class="panel">
+    <h1>Printing Removed</h1>
+    <p>
+      This desktop app no longer exposes printer discovery, receipt printing, or local print APIs.
+      It now acts only as a lightweight shell for the project.
+    </p>
+    <div class="badge">Print capability disabled</div>
+  </main>
 </body>
-
 </html>

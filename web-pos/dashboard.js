@@ -8,7 +8,6 @@ const dashboardState = {
 };
 
 const stockCard = document.getElementById('stockLink');
-const receiptEditorCard = document.getElementById('receiptEditorLink');
 const permissionModalOverlay = document.getElementById('permissionModalOverlay');
 const permissionModalCloseBtn = document.getElementById('permissionModalCloseBtn');
 
@@ -34,7 +33,7 @@ function syncDashboardAccess() {
     const isAdmin = dashboardState.role === 'administrator';
     const restricted = isStaff || (!isAdmin && !dashboardState.role);
 
-    [stockCard, receiptEditorCard].forEach((card) => {
+    [stockCard].forEach((card) => {
         if (!card) {
             return;
         }
@@ -151,6 +150,5 @@ const revenueChart = new Chart(ctx, {
 // Navigation Logic
 handleCardNavigation(document.getElementById('posLink'), 'pos.html', false);
 handleCardNavigation(stockCard, 'stock.html', true);
-handleCardNavigation(receiptEditorCard, 'receipt-editor.html', true);
 
 syncDashboardAccess();

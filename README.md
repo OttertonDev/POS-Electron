@@ -1,46 +1,72 @@
-# Otterton's Point of Sale + Thermal Printer Plugin
+# Otterton POS Desktop Shell
 
-This Electron plugin exposes a local print API for the web POS and supports a hybrid print engine:
+This project now includes a standalone localhost silent print service for Windows.
 
-- RAW ESC/POS raster first (Thai-safe bitmap output, no codepage dependency)
-- Automatic fallback to Chromium/Windows graphic printing
+## Printer Note
 
-## Local API
+For the Vozy P50 thermal printer, the recommended Thai text path is `ESC t 255`.
+Use code page `255` for raw ESC/POS Thai text output.
 
-- `GET /printers`: returns available system printers
-- `POST /print`: submits a print job
+## Phase 1 Service
 
-`POST /print` request shape remains unchanged:
+The Phase 1 service is a manually started local Node process that:
 
-```json
-{
-	"printer": "Optional Printer Name",
-	"data": {
-		"storeName": "Otterton's Point of Sale",
-		"items": [{ "qty": "1x", "name": "Item", "price": "65.00" }],
-		"total": "65.00"
-	}
-}
+- binds to `127.0.0.1`
+- exposes `GET /health`
+- exposes `POST /print`
+- exposes `POST /test-print`
+- prints raw ESC/POS text through one configured Windows printer
+
+The service is structured so it can later be packaged into a simple installer and launched from a desktop shortcut.
+
+## Configuration
+
+Configure these environment variables on the cashier machine:
+
+- `PRINT_PRINTER_NAME`: exact Windows printer name for the Vozy P50
+- `PRINT_SERVICE_PORT`: optional localhost port, default `3011`
+- `PRINT_ALLOWED_ORIGINS`: optional comma-separated web origins allowed to call the service
+
+Example PowerShell setup for the current terminal:
+
+```powershell
+$env:PRINT_PRINTER_NAME="Vozy P50"
+$env:PRINT_SERVICE_PORT="3011"
+$env:PRINT_ALLOWED_ORIGINS="https://tippawan-admin.web.app,http://127.0.0.1:5500"
 ```
 
-## Print Engine Configuration
+## Start The Service
 
-Use environment variables before `npm start`:
+From the project root:
 
-- `POS_PRINT_MODE`: `hybrid` (default), `raw`, or `graphic`
-- `POS_RAW_RENDER_SCALE`: render supersampling factor (default `2`)
-- `POS_RAW_THRESHOLD`: monochrome threshold `1-254` (default `142`)
-- `POS_RAW_CHUNK_HEIGHT`: GS v 0 chunk rows `1-255` (default `64`)
-- `POS_RAW_RASTER_MODE`: GS v 0 mode (`48` default for clone compatibility; other valid values: `0-3`, `48-51`)
-- `POS_RAW_IMAGE_MODE`: `raster` (GS v 0) or `bit-image` (ESC `*`) for compatibility fallback
-- `POS_RAW_CHUNK_SEPARATOR`: `auto` (default), `none`, `lf`, or `crlf`
-- `POS_RAW_LF_BETWEEN_CHUNKS`: legacy alias for separator mode (`on` => `lf`, `off` => `none`)
-- `POS_RAW_END_FEED_LINES`: tail feed lines after print (default `1`)
-- `POS_RAW_WIDTH_DOTS`: target raster width dots (default `384` for most 58mm heads)
-- `POS_RAW_JOB_NAME`: spool job label
+```powershell
+npm run print-service:start
+```
 
-## Notes
+## Verify Health
 
-- RAW mode is implemented for Windows queue printing.
-- Hybrid mode is recommended for production because it preserves fallback resilience.
-- Vozy/V50-style clone firmware may require CRLF between raster chunks or `bit-image` protocol.
+In a second terminal:
+
+```powershell
+npm run print-service:health
+```
+
+If the service is configured correctly, it returns a JSON payload showing readiness and the configured printer name.
+
+## Run A Thai Test Print
+
+To print a service-owned Thai test receipt:
+
+```powershell
+npm run print-service:test
+```
+
+The test print uses raw ESC/POS text with `ESC t 255`.
+
+## Encoder Smoke Check
+
+To verify the encoder output locally without printing:
+
+```powershell
+npm run print-service:encoder-check
+```
