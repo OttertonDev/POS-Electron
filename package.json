@@ -5,11 +5,8 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-<<<<<<< HEAD
     "demo:silent-print": "node demo/silent-print-bridge.js",
     "demo:thai-print": "node demo/thai-print-demo.js",
-=======
->>>>>>> 08d4f41 (Implement silent print service and receipt storage)
     "print-service:start": "node service/server.js",
     "print-service:health": "node service/scripts/check-health.js",
     "print-service:test": "node service/scripts/test-print.js",

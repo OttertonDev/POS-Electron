@@ -38,10 +38,6 @@ function writeJson(res, statusCode, payload, origin) {
 function parseBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
-<<<<<<< HEAD
-
-=======
->>>>>>> 08d4f41 (Implement silent print service and receipt storage)
     req.on("data", (chunk) => chunks.push(chunk));
     req.on("end", () => {
       try {
@@ -55,11 +51,7 @@ function parseBody(req) {
   });
 }
 
-<<<<<<< HEAD
-function serviceReadyPayload() {
-=======
 function buildHealthPayload() {
->>>>>>> 08d4f41 (Implement silent print service and receipt storage)
   const ready = Boolean(config.printerName);
 
   return {
@@ -74,11 +66,7 @@ function buildHealthPayload() {
   };
 }
 
-<<<<<<< HEAD
-async function handlePrint(buffer, jobName) {
-=======
 async function handlePrintJob(buffer, jobName) {
->>>>>>> 08d4f41 (Implement silent print service and receipt storage)
   if (!config.printerName) {
     throw new ServiceError("PRINTER_NOT_CONFIGURED", "PRINT_PRINTER_NAME is not configured.", 500);
   }
@@ -124,26 +112,16 @@ async function requestHandler(req, res) {
 
   try {
     if (req.method === "GET" && req.url === "/health") {
-<<<<<<< HEAD
-      writeJson(res, 200, serviceReadyPayload(), origin);
-=======
       writeJson(res, 200, buildHealthPayload(), origin);
->>>>>>> 08d4f41 (Implement silent print service and receipt storage)
       return;
     }
 
     if (req.method === "POST" && req.url === "/print") {
       const payload = validatePrintPayload(await parseBody(req));
       const buffer = buildReceiptBuffer(payload);
-<<<<<<< HEAD
-      await handlePrint(buffer, payload.receiptId || "POS Receipt");
-
-      logEvent("PRINT_OK", "Printed receipt payload.", {
-=======
       await handlePrintJob(buffer, payload.receiptId || "POS Receipt");
 
       logEvent("PRINT_OK", "Printed receipt.", {
->>>>>>> 08d4f41 (Implement silent print service and receipt storage)
         receiptId: payload.receiptId || "",
         printerName: config.printerName
       });
@@ -158,11 +136,7 @@ async function requestHandler(req, res) {
 
     if (req.method === "POST" && req.url === "/test-print") {
       const buffer = buildTestPrintBuffer();
-<<<<<<< HEAD
-      await handlePrint(buffer, "Vozy P50 Thai Test");
-=======
       await handlePrintJob(buffer, "Vozy P50 Thai Test");
->>>>>>> 08d4f41 (Implement silent print service and receipt storage)
 
       logEvent("TEST_PRINT_OK", "Printed Thai test receipt.", {
         printerName: config.printerName
