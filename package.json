@@ -1,10 +1,7 @@
 {
-  "name": "pos-electron-shell",
+  "name": "ottertons-pos-print-service",
   "version": "1.0.0",
-  "description": "Electron shell for the POS project",
-  "main": "main.js",
   "scripts": {
-    "start": "electron .",
     "demo:silent-print": "node demo/silent-print-bridge.js",
     "demo:thai-print": "node demo/thai-print-demo.js",
     "print-service:start": "node service/server.js",
@@ -14,8 +11,5 @@
   },
   "author": "",
   "license": "ISC",
-  "devDependencies": {
-    "electron": "^41.2.1"
-  },
   "dependencies": {}
 }
