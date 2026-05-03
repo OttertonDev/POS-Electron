@@ -15,26 +15,43 @@ import {
 
 const db = getFirestore(app);
 const productsRef = collection(db, "products");
+const featureTagsRef = collection(db, "featureTags");
 
-const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1517701604599-bb29b565090c?auto=format&fit=crop&q=80&w=200";
 const tableBody = document.getElementById("stockTableBody");
 const stockForm = document.getElementById("stockForm");
 const formTitle = document.getElementById("formTitle");
 const formStatus = document.getElementById("formStatus");
 const saveItemBtn = document.getElementById("saveItemBtn");
 const cancelEditBtn = document.getElementById("cancelEditBtn");
+const createFeatureTagBtn = document.getElementById("createFeatureTagBtn");
+const featureTagModal = document.getElementById("featureTagModal");
+const featureTagForm = document.getElementById("featureTagForm");
+const featureTagNameInput = document.getElementById("featureTagName");
+const cancelFeatureTagBtn = document.getElementById("cancelFeatureTagBtn");
+const openFeatureTagPickerBtn = document.getElementById("openFeatureTagPickerBtn");
+const featureTagPickerModal = document.getElementById("featureTagPickerModal");
+const featureTagOptions = document.getElementById("featureTagOptions");
+const cancelFeatureTagPickerBtn = document.getElementById("cancelFeatureTagPickerBtn");
+const applyFeatureTagsBtn = document.getElementById("applyFeatureTagsBtn");
+const selectedFeatureTagChips = document.getElementById("selectedFeatureTagChips");
+const featureTagCategoryInput = document.getElementById("featureTagCategory");
+const addFeatureTagCategoryBtn = document.getElementById("addFeatureTagCategoryBtn");
+const featureTagCategoryChips = document.getElementById("featureTagCategoryChips");
 
 const inputs = {
     name: document.getElementById("itemName"),
-    category: document.getElementById("itemCategory"),
     price: document.getElementById("itemPrice"),
     stockQty: document.getElementById("itemStock"),
-    reorderLevel: document.getElementById("itemReorder"),
-    img: document.getElementById("itemImage")
+    reorderLevel: document.getElementById("itemReorder")
 };
 
 let editingId = null;
 let cachedRows = [];
+let availableFeatureTags = [];
+let availableFeatureCategories = [];
+let selectedFeatureTags = [];
+let pickerOptions = [];
+let inventoryLoadTimeoutId = null;
 
 const demoSeed = [
     {
@@ -43,7 +60,7 @@ const demoSeed = [
         price: 65,
         stockQty: 24,
         reorderLevel: 8,
-        img: "https://images.unsplash.com/photo-1517701604599-bb29b565090c?auto=format&fit=crop&q=80&w=200",
+        featureTags: [{ name: "Americano", category: "Coffee" }],
         active: true
     },
     {
@@ -52,7 +69,7 @@ const demoSeed = [
         price: 60,
         stockQty: 18,
         reorderLevel: 8,
-        img: "https://images.unsplash.com/photo-1541167760496-162955ed8a9f?auto=format&fit=crop&q=80&w=200",
+        featureTags: [{ name: "Latte", category: "Coffee" }],
         active: true
     },
     {
@@ -61,7 +78,7 @@ const demoSeed = [
         price: 85,
         stockQty: 9,
         reorderLevel: 6,
-        img: "https://images.unsplash.com/photo-1555507036-ab1f4038808a?auto=format&fit=crop&q=80&w=200",
+        featureTags: [{ name: "Croissant", category: "Bakery" }],
         active: true
     },
     {
@@ -70,14 +87,212 @@ const demoSeed = [
         price: 75,
         stockQty: 11,
         reorderLevel: 6,
-        img: "https://images.unsplash.com/photo-1515823064-d6e0c04616a7?auto=format&fit=crop&q=80&w=200",
+        featureTags: [{ name: "Matcha Latte", category: "Tea" }],
         active: true
     }
 ];
 
+function escapeHtml(value) {
+    return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+}
+
+function normalizeCategory(value) {
+    return String(value || "")
+        .trim()
+        .replace(/\s+/g, " ");
+}
+
+function normalizeCategoryKey(value) {
+    return normalizeCategory(value).toLowerCase();
+}
+
+function renderCategoryChips() {
+    if (!featureTagCategoryChips) {
+        return;
+    }
+
+    if (availableFeatureCategories.length === 0) {
+        featureTagCategoryChips.innerHTML = '<span class="feature-tag-chip">No categories yet</span>';
+        return;
+    }
+
+    featureTagCategoryChips.innerHTML = availableFeatureCategories.map((category) => {
+        const active = normalizeCategoryKey(category) === normalizeCategoryKey(featureTagCategoryInput?.value) ? "is-selected" : "";
+        return `<button type="button" class="category-chip ${active}" data-category="${escapeHtml(category)}">${escapeHtml(category)}</button>`;
+    }).join("");
+
+    featureTagCategoryChips.querySelectorAll(".category-chip").forEach((button) => {
+        button.addEventListener("click", () => {
+            if (featureTagCategoryInput) {
+                featureTagCategoryInput.value = button.dataset.category || "";
+            }
+            renderCategoryChips();
+        });
+    });
+}
+
 function setStatus(message, isError = false) {
     formStatus.textContent = message;
     formStatus.style.color = isError ? "#b91c1c" : "#64748b";
+}
+
+function openModal(modal) {
+    if (!modal) {
+        return;
+    }
+
+    modal.hidden = false;
+}
+
+function closeModal(modal) {
+    if (!modal) {
+        return;
+    }
+
+    modal.hidden = true;
+}
+
+function normalizeFeatureTag(tag, fallbackCategory = "") {
+    if (typeof tag === "string") {
+        const name = tag.trim();
+        if (!name) {
+            return null;
+        }
+
+        return {
+            id: name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, ""),
+            name,
+            category: ""
+        };
+    }
+
+    if (!tag || typeof tag !== "object") {
+        return null;
+    }
+
+    const name = String(tag.name || tag.label || tag.title || "").trim();
+    if (!name) {
+        return null;
+    }
+
+    const id = String(tag.id || tag.featureTagId || name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, ""));
+
+    return {
+        id,
+        name,
+        category: normalizeCategory(tag.category || fallbackCategory)
+    };
+}
+
+function normalizeFeatureTags(value) {
+    const raw = Array.isArray(value) ? value : value ? [value] : [];
+    const seen = new Set();
+
+    return raw
+        .map((tag) => normalizeFeatureTag(tag))
+        .filter(Boolean)
+        .filter((tag) => {
+            const key = `${tag.id}:${tag.name.toLowerCase()}`;
+            if (seen.has(key)) {
+                return false;
+            }
+            seen.add(key);
+            return true;
+        });
+}
+
+function tagSummary(tags) {
+    if (!tags.length) {
+        return "No feature tags selected";
+    }
+
+    return tags.map((tag) => tag.category ? `${tag.name} (${tag.category})` : tag.name).join(", ");
+}
+
+function renderFeatureTagChips(tags, emptyText = "No tags") {
+    if (!tags.length) {
+        return `<span class="feature-tag-chip">${escapeHtml(emptyText)}</span>`;
+    }
+
+    return tags.map((tag) => {
+        return `
+            <span class="feature-tag-chip">${escapeHtml(tag.category ? `${tag.name} · ${tag.category}` : tag.name)}</span>
+        `;
+    }).join("");
+}
+
+function updateSelectedFeatureTagUI() {
+    if (selectedFeatureTagChips) {
+        selectedFeatureTagChips.innerHTML = renderFeatureTagChips(selectedFeatureTags, "No feature tags chosen yet.");
+    }
+}
+
+function getPickerOptions() {
+    const merged = [...availableFeatureTags];
+    const existingIds = new Set(merged.map((tag) => tag.id));
+
+    for (const tag of selectedFeatureTags) {
+        if (!existingIds.has(tag.id)) {
+            merged.push(tag);
+        }
+    }
+
+    return merged;
+}
+
+function renderFeatureTagPicker() {
+    pickerOptions = getPickerOptions();
+
+    if (!featureTagOptions) {
+        return;
+    }
+
+    if (pickerOptions.length === 0) {
+        featureTagOptions.innerHTML = '<div class="picker-empty">No feature tags yet. Create one first.</div>';
+        return;
+    }
+
+    const selectedIds = new Set(selectedFeatureTags.map((tag) => tag.id));
+    const groups = new Map();
+
+    for (const tag of pickerOptions) {
+        const group = normalizeCategory(tag.category || "Uncategorized") || "Uncategorized";
+        if (!groups.has(group)) {
+            groups.set(group, []);
+        }
+
+        groups.get(group).push({ ...tag, category: group });
+    }
+
+    featureTagOptions.innerHTML = Array.from(groups.entries()).map(([groupName, tags]) => `
+        <section class="feature-tag-group">
+            <div class="feature-tag-group-title">
+                <span>${escapeHtml(groupName)}</span>
+                <span>${tags.length} tag${tags.length === 1 ? "" : "s"}</span>
+            </div>
+            <div class="feature-tag-card-grid">
+                ${tags.map((tag) => {
+                    const checked = selectedIds.has(tag.id) ? "checked" : "";
+                    return `
+                        <div class="feature-tag-card">
+                            <label>
+                                <input type="checkbox" data-feature-tag-id="${escapeHtml(tag.id)}" ${checked}>
+                                <span>
+                                    <strong>${escapeHtml(tag.name)}</strong>
+                                    <span>${escapeHtml(groupName)}</span>
+                                </span>
+                            </label>
+                        </div>
+                    `;
+                }).join("")}
+            </div>
+        </section>
+    `).join("");
 }
 
 function resetForm() {
@@ -86,6 +301,8 @@ function resetForm() {
     formTitle.textContent = "Add Stock Item";
     saveItemBtn.textContent = "Save Item";
     cancelEditBtn.style.display = "none";
+    selectedFeatureTags = [];
+    updateSelectedFeatureTagUI();
     setStatus("Ready.");
 }
 
@@ -107,11 +324,12 @@ function renderRows(rows) {
             const isLow = item.stockQty <= item.reorderLevel;
             const statusClass = isLow ? "low" : "ok";
             const statusLabel = isLow ? "Low Stock" : "Healthy";
+            const tagsHtml = renderFeatureTagChips(item.featureTags, item.category || "No tags");
 
             return `
                 <tr>
-                    <td>${item.name}</td>
-                    <td>${item.category}</td>
+                    <td>${escapeHtml(item.name)}</td>
+                    <td>${tagsHtml}</td>
                     <td>${item.stockQty}</td>
                     <td>${item.reorderLevel}</td>
                     <td><span class="stock-pill ${statusClass}">${statusLabel}</span></td>
@@ -125,6 +343,14 @@ function renderRows(rows) {
             `;
         })
         .join("");
+}
+
+function renderTableLoading(message = "Loading inventory...") {
+    tableBody.innerHTML = `<tr><td colspan="6" class="empty-row">${escapeHtml(message)}</td></tr>`;
+}
+
+function renderTableError(message) {
+    tableBody.innerHTML = `<tr><td colspan="6" class="empty-row">${escapeHtml(message)}</td></tr>`;
 }
 
 async function seedIfEmpty() {
@@ -144,51 +370,126 @@ async function seedIfEmpty() {
     setStatus("Seeded demo inventory to Firestore.");
 }
 
-function startRealtimeSync() {
-    const q = query(productsRef, orderBy("name"));
+function startFeatureTagSync() {
+    const q = query(featureTagsRef, orderBy("name"));
+
     onSnapshot(q, (snapshot) => {
-        const rows = snapshot.docs.map((snap) => {
+        availableFeatureTags = snapshot.docs.map((snap) => {
             const data = snap.data();
             return {
                 id: snap.id,
+                name: String(data.name || "Unnamed Tag").trim(),
+                category: normalizeCategory(data.category || "Uncategorized")
+            };
+        });
+
+        availableFeatureCategories = Array.from(new Set(availableFeatureTags.map((tag) => tag.category || "Uncategorized")));
+
+        if (!featureTagPickerModal?.hidden) {
+            renderFeatureTagPicker();
+        }
+
+        renderCategoryChips();
+    }, (error) => {
+        console.error("Feature tag snapshot error:", error);
+    });
+}
+
+function startRealtimeSync() {
+    const q = query(productsRef, orderBy("name"));
+
+    if (inventoryLoadTimeoutId) {
+        window.clearTimeout(inventoryLoadTimeoutId);
+    }
+
+    renderTableLoading("Loading inventory from Firestore...");
+
+    inventoryLoadTimeoutId = window.setTimeout(() => {
+        if (cachedRows.length === 0) {
+            setStatus("Inventory is taking too long to load.", true);
+            renderTableError("Could not load inventory from Firestore.");
+        }
+    }, 8000);
+
+    onSnapshot(q, (snapshot) => {
+        if (inventoryLoadTimeoutId) {
+            window.clearTimeout(inventoryLoadTimeoutId);
+            inventoryLoadTimeoutId = null;
+        }
+
+        const rows = snapshot.docs.map((snap) => {
+            const data = snap.data();
+            const featureTags = normalizeFeatureTags(data.featureTags || data.category);
+
+            return {
+                id: snap.id,
                 name: data.name || "Unnamed",
-                category: data.category || "uncategorized",
                 price: toSafeNumber(data.price),
                 stockQty: toSafeNumber(data.stockQty),
                 reorderLevel: toSafeNumber(data.reorderLevel),
-                img: data.img || DEFAULT_IMAGE
+                category: data.category || featureTags[0]?.name || "uncategorized",
+                featureTags
             };
         });
 
         renderRows(rows);
     }, (error) => {
+        if (inventoryLoadTimeoutId) {
+            window.clearTimeout(inventoryLoadTimeoutId);
+            inventoryLoadTimeoutId = null;
+        }
+
         console.error("Stock snapshot error:", error);
         setStatus("Realtime sync failed. Check Firestore rules.", true);
+        renderTableError("Could not load inventory from Firestore.");
     });
 }
 
 function readFormPayload() {
     const name = inputs.name.value.trim();
-    const category = inputs.category.value;
     const price = toSafeNumber(inputs.price.value);
     const stockQty = Math.max(0, Math.floor(toSafeNumber(inputs.stockQty.value)));
     const reorderLevel = Math.max(0, Math.floor(toSafeNumber(inputs.reorderLevel.value)));
-    const img = inputs.img.value.trim() || DEFAULT_IMAGE;
+    const featureTags = normalizeFeatureTags(selectedFeatureTags);
 
-    if (!name || !category) {
-        throw new Error("Item name and category are required.");
+    if (!name || featureTags.length === 0) {
+        throw new Error("Item name and at least one feature tag are required.");
     }
 
     return {
         name,
-        category,
+        category: featureTags[0]?.category || "uncategorized",
+        featureTags,
         price,
         stockQty,
         reorderLevel,
-        img,
         active: true,
         updatedAt: serverTimestamp()
     };
+}
+
+async function createFeatureTag() {
+    const name = featureTagNameInput.value.trim();
+    const category = normalizeCategory(featureTagCategoryInput?.value);
+
+    if (!name || !category) {
+        throw new Error("Tag name is required.");
+    }
+
+    await addDoc(featureTagsRef, {
+        name,
+        category,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+    });
+}
+
+function applyPickerSelection() {
+    const checked = Array.from(featureTagOptions.querySelectorAll('input[type="checkbox"][data-feature-tag-id]'));
+    const selectedIds = new Set(checked.filter((input) => input.checked).map((input) => input.dataset.featureTagId));
+    selectedFeatureTags = pickerOptions.filter((tag) => selectedIds.has(tag.id));
+    updateSelectedFeatureTagUI();
+    closeModal(featureTagPickerModal);
 }
 
 stockForm.addEventListener("submit", async (event) => {
@@ -217,6 +518,78 @@ stockForm.addEventListener("submit", async (event) => {
 
 cancelEditBtn.addEventListener("click", () => {
     resetForm();
+});
+
+createFeatureTagBtn?.addEventListener("click", () => {
+    featureTagForm?.reset();
+    if (featureTagCategoryInput) {
+        featureTagCategoryInput.value = availableFeatureCategories[0] || "";
+    }
+    renderCategoryChips();
+    openModal(featureTagModal);
+    featureTagNameInput?.focus();
+});
+
+cancelFeatureTagBtn?.addEventListener("click", () => {
+    closeModal(featureTagModal);
+});
+
+featureTagModal?.addEventListener("click", (event) => {
+    if (event.target === featureTagModal) {
+        closeModal(featureTagModal);
+    }
+});
+
+featureTagForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    try {
+        await createFeatureTag();
+        closeModal(featureTagModal);
+        setStatus("Feature tag created.");
+        featureTagForm.reset();
+        if (featureTagCategoryInput) {
+            featureTagCategoryInput.value = availableFeatureCategories[0] || "";
+        }
+        renderCategoryChips();
+    } catch (error) {
+        console.error("Create feature tag failed:", error);
+        setStatus(error.message || "Could not create feature tag.", true);
+    }
+});
+
+addFeatureTagCategoryBtn?.addEventListener("click", () => {
+    const category = normalizeCategory(featureTagCategoryInput?.value);
+    if (!category) {
+        return;
+    }
+
+    if (!availableFeatureCategories.some((entry) => normalizeCategoryKey(entry) === normalizeCategoryKey(category))) {
+        availableFeatureCategories.push(category);
+    }
+
+    if (featureTagCategoryInput) {
+        featureTagCategoryInput.value = category;
+    }
+
+    renderCategoryChips();
+});
+
+openFeatureTagPickerBtn?.addEventListener("click", () => {
+    renderFeatureTagPicker();
+    openModal(featureTagPickerModal);
+});
+
+cancelFeatureTagPickerBtn?.addEventListener("click", () => {
+    closeModal(featureTagPickerModal);
+});
+
+applyFeatureTagsBtn?.addEventListener("click", applyPickerSelection);
+
+featureTagPickerModal?.addEventListener("click", (event) => {
+    if (event.target === featureTagPickerModal) {
+        closeModal(featureTagPickerModal);
+    }
 });
 
 tableBody.addEventListener("click", async (event) => {
@@ -258,11 +631,11 @@ tableBody.addEventListener("click", async (event) => {
             }
 
             inputs.name.value = item.name;
-            inputs.category.value = item.category;
             inputs.stockQty.value = item.stockQty;
             inputs.reorderLevel.value = item.reorderLevel;
             inputs.price.value = item.price;
-            inputs.img.value = item.img === DEFAULT_IMAGE ? "" : item.img;
+            selectedFeatureTags = normalizeFeatureTags(item.featureTags || item.category);
+            updateSelectedFeatureTagUI();
 
             editingId = id;
             formTitle.textContent = "Edit Stock Item";
@@ -280,12 +653,13 @@ if (window.lucide) {
     lucide.createIcons();
 }
 
-seedIfEmpty()
-    .then(() => {
-        startRealtimeSync();
-    })
-    .catch((error) => {
-        console.error("Seed/init failed:", error);
-        setStatus("Could not initialize stock data. Check Firestore rules.", true);
-        startRealtimeSync();
-    });
+renderTableLoading("Loading inventory from Firestore...");
+startFeatureTagSync();
+startRealtimeSync();
+
+seedIfEmpty().catch((error) => {
+    console.error("Seed/init failed:", error);
+    setStatus("Could not initialize stock data. Check Firestore rules.", true);
+});
+
+updateSelectedFeatureTagUI();

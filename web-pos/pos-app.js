@@ -29,21 +29,16 @@ let receiptSettings = {
     addressAlign: "center"
 };
 
-const FALLBACK_PRODUCTS = [
-    { id: "local-1", name: "Iced Americano", price: 65, category: "coffee", img: "https://images.unsplash.com/photo-1517701604599-bb29b565090c?auto=format&fit=crop&q=80&w=200", stockQty: 99, reorderLevel: 5 },
-    { id: "local-2", name: "Hot Latte", price: 60, category: "coffee", img: "https://images.unsplash.com/photo-1541167760496-162955ed8a9f?auto=format&fit=crop&q=80&w=200", stockQty: 99, reorderLevel: 5 },
-    { id: "local-3", name: "Butter Croissant", price: 85, category: "bakery", img: "https://images.unsplash.com/photo-1555507036-ab1f4038808a?auto=format&fit=crop&q=80&w=200", stockQty: 99, reorderLevel: 5 },
-    { id: "local-4", name: "Chocolate Lava", price: 120, category: "bakery", img: "https://images.unsplash.com/photo-1563805042-7684c019e1cb?auto=format&fit=crop&q=80&w=200", stockQty: 99, reorderLevel: 5 },
-    { id: "local-5", name: "Matcha Latte", price: 75, category: "tea", img: "https://images.unsplash.com/photo-1515823064-d6e0c04616a7?auto=format&fit=crop&q=80&w=200", stockQty: 99, reorderLevel: 5 },
-    { id: "local-6", name: "Thai Milk Tea", price: 55, category: "tea", img: "https://images.unsplash.com/photo-1558239027-d09f7a636952?auto=format&fit=crop&q=80&w=200", stockQty: 99, reorderLevel: 5 }
-];
-
-let products = [...FALLBACK_PRODUCTS];
+let products = [];
 let cart = [];
-let currentCategory = "coffee";
+let selectedCategoryKeys = new Set();
+let selectedTagKeys = new Set();
+let expandedCategoryKeys = new Set();
 let serviceReady = false;
 let saleInFlight = false;
 let pendingPrintedSale = null;
+let featureTagTree = [];
+let productsLoaded = false;
 
 const productGrid = document.getElementById("productGrid");
 const cartList = document.getElementById("cartList");
@@ -54,6 +49,295 @@ const checkoutBtn = document.getElementById("checkoutBtn");
 const serviceStatus = document.getElementById("serviceStatus");
 const serviceStatusText = serviceStatus?.querySelector(".service-status-text");
 const checkoutNote = document.getElementById("checkoutNote");
+const featureTagTreeListEl = document.getElementById("featureTagTreeList");
+const featureTagAllCheckbox = document.getElementById("featureTagAllCheckbox");
+
+function escapeHtml(value) {
+    return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+}
+
+function getCategoryAccent(category) {
+    switch (category) {
+        case "coffee":
+            return "#8b5cf6";
+        case "bakery":
+            return "#f97316";
+        case "tea":
+            return "#14b8a6";
+        default:
+            return "#0f172a";
+    }
+}
+
+function normalizeTagKey(value) {
+    return String(value || "")
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+}
+
+function normalizeCategoryName(value) {
+    const text = String(value || "").trim().replace(/\s+/g, " ");
+    return text || "Uncategorized";
+}
+
+function getCategoryKey(value) {
+    return normalizeTagKey(normalizeCategoryName(value));
+}
+
+function normalizeFeatureTags(value, fallbackCategory = "") {
+    const raw = Array.isArray(value) ? value : value ? [value] : [];
+    const tags = raw
+        .map((tag) => {
+            if (typeof tag === "string") {
+                const name = tag.trim();
+                if (!name) {
+                    return null;
+                }
+                return {
+                    name,
+                    category: normalizeCategoryName(fallbackCategory)
+                };
+            }
+
+            if (!tag || typeof tag !== "object") {
+                return null;
+            }
+
+            const name = String(tag.name || tag.label || tag.title || "").trim();
+            if (!name) {
+                return null;
+            }
+
+            return {
+                name,
+                category: normalizeCategoryName(tag.category || fallbackCategory)
+            };
+        })
+        .filter(Boolean);
+
+    if (tags.length === 0 && fallbackCategory) {
+        tags.push({ name: fallbackCategory, category: normalizeCategoryName(fallbackCategory) });
+    }
+
+    return tags;
+}
+
+function getTagKey(tag) {
+    return normalizeTagKey(tag?.name || tag?.label || tag?.title || "");
+}
+
+function buildFeatureTagTree() {
+    const tree = new Map();
+
+    for (const product of products) {
+        const tags = normalizeFeatureTags(product.featureTags, product.category);
+        for (const tag of tags) {
+            const categoryName = normalizeCategoryName(tag.category || product.category);
+            const categoryKey = getCategoryKey(categoryName);
+            const tagKey = getTagKey(tag);
+            if (!tagKey) {
+                continue;
+            }
+
+            if (!tree.has(categoryKey)) {
+                tree.set(categoryKey, {
+                    key: categoryKey,
+                    name: categoryName,
+                    tags: new Map()
+                });
+            }
+
+            tree.get(categoryKey).tags.set(tagKey, {
+                key: tagKey,
+                name: tag.name,
+                category: categoryName
+            });
+        }
+    }
+
+    featureTagTree = Array.from(tree.values())
+        .map((category) => ({
+            ...category,
+            tags: Array.from(category.tags.values()).sort((a, b) => a.name.localeCompare(b.name, "th"))
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name, "th"));
+
+    if (expandedCategoryKeys.size === 0) {
+        expandedCategoryKeys = new Set(featureTagTree.map((category) => category.key));
+    } else {
+        expandedCategoryKeys = new Set(
+            featureTagTree
+                .filter((category) => expandedCategoryKeys.has(category.key))
+                .map((category) => category.key)
+        );
+    }
+}
+
+function syncAllCheckboxState() {
+    if (!featureTagAllCheckbox) {
+        return;
+    }
+
+    featureTagAllCheckbox.checked = selectedCategoryKeys.size === 0 && selectedTagKeys.size === 0;
+}
+
+function clearFeatureTagFilters() {
+    selectedCategoryKeys.clear();
+    selectedTagKeys.clear();
+}
+
+function renderFeatureTagTree() {
+    if (!featureTagTreeListEl) {
+        return;
+    }
+
+    if (featureTagTree.length === 0) {
+        featureTagTreeListEl.innerHTML = '<div class="tree-empty">No feature tags found in Firestore.</div>';
+        syncAllCheckboxState();
+        return;
+    }
+
+    featureTagTreeListEl.innerHTML = featureTagTree.map((category) => {
+        const categoryChecked = selectedCategoryKeys.has(category.key);
+        const categoryOpen = expandedCategoryKeys.has(category.key);
+        const tagCount = category.tags.length;
+
+        return `
+            <section class="tree-folder ${categoryOpen ? "is-open" : ""}" data-category-key="${escapeHtml(category.key)}">
+                <button type="button" class="tree-folder-header" data-category-toggle="${escapeHtml(category.key)}">
+                    <span class="folder-left">
+                        <input type="checkbox" class="category-checkbox" data-category-checkbox="${escapeHtml(category.key)}" ${categoryChecked ? "checked" : ""}>
+                        <span>${escapeHtml(category.name)}</span>
+                    </span>
+                    <span class="folder-meta">${tagCount} tag${tagCount === 1 ? "" : "s"}</span>
+                    <i data-lucide="chevron-right" class="folder-toggle"></i>
+                </button>
+                <div class="tree-folder-body" ${categoryOpen ? "" : "hidden"}>
+                    ${category.tags.map((tag) => {
+                        const tagChecked = selectedTagKeys.has(tag.key);
+                        return `
+                            <label class="tree-tag-option">
+                                <input type="checkbox" data-tag-checkbox="${escapeHtml(tag.key)}" data-category-key="${escapeHtml(category.key)}" ${tagChecked ? "checked" : ""}>
+                                <span>${escapeHtml(tag.name)}</span>
+                            </label>
+                        `;
+                    }).join("")}
+                </div>
+            </section>
+        `;
+    }).join("");
+
+    featureTagTreeListEl.querySelectorAll("[data-category-toggle]").forEach((button) => {
+        button.addEventListener("click", () => {
+            const categoryKey = button.dataset.categoryToggle;
+            if (!categoryKey) {
+                return;
+            }
+
+            if (expandedCategoryKeys.has(categoryKey)) {
+                expandedCategoryKeys.delete(categoryKey);
+            } else {
+                expandedCategoryKeys.add(categoryKey);
+            }
+
+            renderFeatureTagTree();
+        });
+    });
+
+    featureTagTreeListEl.querySelectorAll("[data-category-checkbox]").forEach((checkbox) => {
+        checkbox.addEventListener("change", () => {
+            const categoryKey = checkbox.dataset.categoryCheckbox;
+            if (!categoryKey) {
+                return;
+            }
+
+            const category = featureTagTree.find((entry) => entry.key === categoryKey);
+            if (!category) {
+                return;
+            }
+
+            if (checkbox.checked) {
+                selectedCategoryKeys.add(categoryKey);
+                category.tags.forEach((tag) => selectedTagKeys.add(tag.key));
+            } else {
+                selectedCategoryKeys.delete(categoryKey);
+                category.tags.forEach((tag) => selectedTagKeys.delete(tag.key));
+            }
+
+            syncAllCheckboxState();
+            renderFeatureTagTree();
+            renderProducts();
+        });
+    });
+
+    featureTagTreeListEl.querySelectorAll("[data-tag-checkbox]").forEach((checkbox) => {
+        checkbox.addEventListener("change", () => {
+            const tagKey = checkbox.dataset.tagCheckbox;
+            const categoryKey = checkbox.dataset.categoryKey;
+            if (!tagKey || !categoryKey) {
+                return;
+            }
+
+            const category = featureTagTree.find((entry) => entry.key === categoryKey);
+            if (!category) {
+                return;
+            }
+
+            if (checkbox.checked) {
+                selectedTagKeys.add(tagKey);
+                if (category.tags.every((tag) => selectedTagKeys.has(tag.key))) {
+                    selectedCategoryKeys.add(categoryKey);
+                }
+            } else {
+                selectedTagKeys.delete(tagKey);
+                selectedCategoryKeys.delete(categoryKey);
+            }
+
+            syncAllCheckboxState();
+            renderFeatureTagTree();
+            renderProducts();
+        });
+    });
+
+    if (featureTagAllCheckbox) {
+        featureTagAllCheckbox.onchange = () => {
+            if (featureTagAllCheckbox.checked) {
+                clearFeatureTagFilters();
+                expandedCategoryKeys = new Set(featureTagTree.map((category) => category.key));
+                renderFeatureTagTree();
+                renderProducts();
+                return;
+            }
+
+            if (selectedCategoryKeys.size === 0 && selectedTagKeys.size === 0) {
+                featureTagAllCheckbox.checked = true;
+            }
+        };
+    }
+
+    syncAllCheckboxState();
+
+    if (window.lucide) {
+        lucide.createIcons();
+    }
+}
+
+function getProductInitials(name) {
+    return String(name || "Item")
+        .trim()
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((part) => part[0] || "")
+        .join("")
+        .toUpperCase() || "IT";
+}
 
 async function init() {
     await loadReceiptSettings();
@@ -62,15 +346,6 @@ async function init() {
     renderProducts();
     updateCartUI();
     document.getElementById("currentDate").innerText = new Date().toLocaleDateString("th-TH");
-
-    document.querySelectorAll(".cat-btn").forEach((btn) => {
-        btn.addEventListener("click", () => {
-            document.querySelector(".cat-btn.active")?.classList.remove("active");
-            btn.classList.add("active");
-            currentCategory = btn.dataset.category;
-            renderProducts();
-        });
-    });
 
     checkoutBtn?.addEventListener("click", completeSale);
 
@@ -144,8 +419,12 @@ async function loadReceiptSettings() {
 
 function startProductSync() {
     onSnapshot(collection(db, "products"), (snapshot) => {
+        productsLoaded = true;
+
         if (snapshot.empty) {
-            products = [...FALLBACK_PRODUCTS];
+            products = [];
+            buildFeatureTagTree();
+            renderFeatureTagTree();
             renderProducts();
             updateCartUI();
             return;
@@ -154,12 +433,14 @@ function startProductSync() {
         products = snapshot.docs
             .map((snap) => {
                 const data = snap.data();
+                const featureTags = normalizeFeatureTags(data.featureTags, data.category || "");
                 return {
                     id: snap.id,
                     name: data.name || "Unnamed Item",
-                    category: data.category || "coffee",
+                    category: data.category || featureTags[0]?.name || "uncategorized",
+                    featureTags,
                     price: Number(data.price) || 0,
-                    img: data.img || "https://images.unsplash.com/photo-1517701604599-bb29b565090c?auto=format&fit=crop&q=80&w=200",
+                    img: data.img || "",
                     stockQty: Math.max(0, Math.floor(Number(data.stockQty) || 0)),
                     reorderLevel: Math.max(0, Math.floor(Number(data.reorderLevel) || 0)),
                     active: data.active !== false
@@ -168,11 +449,16 @@ function startProductSync() {
             .filter((item) => item.active);
 
         syncCartWithInventory();
+        buildFeatureTagTree();
+        renderFeatureTagTree();
         renderProducts();
         updateCartUI();
     }, (error) => {
-        console.warn("Could not subscribe to products. Using fallback data.", error);
-        products = [...FALLBACK_PRODUCTS];
+        console.warn("Could not subscribe to products from Firestore.", error);
+        productsLoaded = true;
+        products = [];
+        buildFeatureTagTree();
+        renderFeatureTagTree();
         renderProducts();
         updateCartUI();
     });
@@ -200,12 +486,36 @@ function syncCartWithInventory() {
 }
 
 function renderProducts() {
-    const filtered = products.filter((product) => product.category === currentCategory && product.stockQty > 0);
+    if (!productsLoaded) {
+        productGrid.innerHTML = `
+            <div class="empty-cart" style="grid-column: 1 / -1; height: 180px; background: white; border-radius: 14px; border: 1px dashed #cbd5e1;">
+                <p>Loading products from Firestore...</p>
+            </div>
+        `;
+        return;
+    }
+
+    const filtered = products.filter((product) => {
+        if (product.stockQty <= 0) {
+            return false;
+        }
+
+        if (selectedCategoryKeys.size === 0 && selectedTagKeys.size === 0) {
+            return true;
+        }
+
+        const tags = normalizeFeatureTags(product.featureTags, product.category);
+        const productCategoryKey = getCategoryKey(product.category || tags[0]?.category || "");
+        const categoryMatch = selectedCategoryKeys.has(productCategoryKey);
+        const tagMatch = tags.some((tag) => selectedTagKeys.has(getTagKey(tag)));
+
+        return categoryMatch || tagMatch;
+    });
 
     if (filtered.length === 0) {
         productGrid.innerHTML = `
             <div class="empty-cart" style="grid-column: 1 / -1; height: 180px; background: white; border-radius: 14px; border: 1px dashed #cbd5e1;">
-                <p>No products in this category.</p>
+                <p>No products found in Firestore.</p>
             </div>
         `;
         return;
@@ -213,9 +523,11 @@ function renderProducts() {
 
     productGrid.innerHTML = filtered.map((product) => `
         <div class="product-card" onclick='addToCart(${JSON.stringify(product.id)})'>
-            <img src="${product.img}" alt="${product.name}" class="product-img">
+            <div class="product-media" style="--media-accent:${getCategoryAccent(product.category)};">
+                <span>${escapeHtml(getProductInitials(product.name))}</span>
+            </div>
             <div class="product-info">
-                <h3>${product.name}</h3>
+                <h3>${escapeHtml(product.name)}</h3>
                 <div class="product-price">THB ${product.price.toFixed(2)}</div>
                 <div style="font-size:0.8rem;color:#64748b;">Stock: ${product.stockQty}</div>
             </div>
@@ -253,7 +565,6 @@ function updateCartUI() {
     if (cart.length === 0) {
         cartList.innerHTML = `
             <div class="empty-cart">
-                <img src="https://cdn-icons-png.flaticon.com/512/11329/11329060.png" alt="Empty Cart">
                 <p>Order is empty</p>
             </div>
         `;
@@ -423,7 +734,7 @@ async function completeSale() {
 
             setServiceStatus("printing", "Printing Receipt", `Printing receipt ${receiptId}.`);
             checkoutBtn.disabled = true;
-            checkoutBtn.innerHTML = '<span class="btn-icon">...</span> Printing Receipt';
+            checkoutBtn.textContent = "Printing Receipt";
 
             await sendPrintRequest(payload);
             context = { receiptId, payload, soldItems };
@@ -435,7 +746,7 @@ async function completeSale() {
                 `Receipt ${context.receiptId} already printed. Finishing Firestore save and inventory update.`
             );
             checkoutBtn.disabled = true;
-            checkoutBtn.innerHTML = '<span class="btn-icon">...</span> Saving Sale';
+            checkoutBtn.textContent = "Saving Sale";
         }
 
         await finalizePrintedSale(context);
@@ -460,7 +771,7 @@ async function completeSale() {
         alert(errorMessage);
     } finally {
         saleInFlight = false;
-        checkoutBtn.innerHTML = originalText;
+        checkoutBtn.textContent = originalText;
         await refreshPrintServiceStatus();
     }
 }

@@ -89,14 +89,26 @@
             gap: 10px;
         }
 
-        .pill {
-            background: white;
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 9px 12px;
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            box-shadow: var(--card-shadow);
+        .feature-tag-button {
+            border: none;
+            border-radius: 999px;
+            padding: 11px 16px;
+            font-size: 0.88rem;
+            font-weight: 700;
+            color: white;
+            background: linear-gradient(135deg, #007bff, #00a3ff);
+            box-shadow: 0 10px 24px rgba(0, 123, 255, 0.22);
+            cursor: pointer;
+            transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+        }
+
+        .feature-tag-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 14px 28px rgba(0, 123, 255, 0.28);
+        }
+
+        .feature-tag-button:active {
+            transform: translateY(0);
         }
 
         .layout {
@@ -207,6 +219,255 @@
             background: white;
         }
 
+        .feature-tag-picker {
+            display: grid;
+            gap: 8px;
+        }
+
+        .feature-tag-add-btn {
+            border: none;
+            border-radius: 12px;
+            background: #0f172a;
+            color: white;
+            font-size: 1.2rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .feature-tag-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            min-height: 34px;
+        }
+
+        .feature-tag-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border-radius: 999px;
+            padding: 7px 12px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: #0f172a;
+            background: #e2e8f0;
+        }
+
+        .feature-tag-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .feature-tag-help {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            line-height: 1.45;
+        }
+
+        .feature-tag-modal,
+        .feature-tag-picker-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.55);
+            display: grid;
+            place-items: center;
+            z-index: 50;
+            padding: 16px;
+        }
+
+        .feature-tag-modal[hidden],
+        .feature-tag-picker-modal[hidden] {
+            display: none;
+        }
+
+        .feature-tag-modal-card,
+        .feature-tag-picker-card {
+            width: min(100%, 520px);
+            background: white;
+            border-radius: 24px;
+            padding: 22px;
+            box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+        }
+
+        .feature-tag-picker-card {
+            width: min(100%, 560px);
+        }
+
+        .feature-tag-modal-card h3,
+        .feature-tag-picker-card h3 {
+            font-size: 1.2rem;
+            margin-bottom: 6px;
+        }
+
+        .feature-tag-modal-card p,
+        .feature-tag-picker-card p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-bottom: 16px;
+        }
+
+        .modal-form {
+            display: grid;
+            gap: 12px;
+        }
+
+        .modal-form input {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 14px;
+            font-family: inherit;
+            font-size: 0.92rem;
+        }
+
+        .category-row {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .category-add-btn {
+            border: none;
+            border-radius: 12px;
+            background: #0f172a;
+            color: white;
+            padding: 12px 14px;
+            font-size: 0.92rem;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .category-chip-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .category-chip {
+            border: 1px solid var(--border);
+            background: #f8fafc;
+            color: #0f172a;
+            border-radius: 999px;
+            padding: 8px 12px;
+            font-size: 0.84rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .category-chip.is-selected {
+            background: var(--primary-blue);
+            color: white;
+            border-color: transparent;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 8px;
+        }
+
+        .modal-secondary-btn {
+            border: 1px solid var(--border);
+            background: white;
+            color: var(--text-dark);
+            border-radius: 12px;
+            padding: 11px 15px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .modal-primary-btn {
+            border: none;
+            background: var(--primary-blue);
+            color: white;
+            border-radius: 12px;
+            padding: 11px 15px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .feature-tag-groups {
+            display: grid;
+            gap: 14px;
+            max-height: 340px;
+            overflow: auto;
+            padding-right: 4px;
+        }
+
+        .feature-tag-group {
+            display: grid;
+            gap: 10px;
+        }
+
+        .feature-tag-group-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            font-size: 0.88rem;
+            font-weight: 700;
+            color: var(--text-dark);
+        }
+
+        .feature-tag-group-title span {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .feature-tag-card-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .feature-tag-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 12px 14px;
+            background: #f8fafc;
+        }
+
+        .feature-tag-card strong {
+            display: block;
+            font-size: 0.95rem;
+        }
+
+        .feature-tag-card span {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+        }
+
+        .feature-tag-card label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            flex: 1;
+        }
+
+        .feature-tag-card input {
+            width: 18px;
+            height: 18px;
+        }
+
+        .picker-empty {
+            border: 1px dashed var(--border);
+            border-radius: 16px;
+            padding: 18px;
+            text-align: center;
+            color: var(--text-muted);
+            background: #f8fafc;
+        }
+
         .muted-note {
             font-size: 0.82rem;
             color: var(--text-muted);
@@ -269,7 +530,7 @@
                 </div>
             </div>
             <div class="header-actions">
-                <span class="pill">Demo View</span>
+                <button class="feature-tag-button" type="button" id="createFeatureTagBtn">Create Feature Tag</button>
             </div>
         </header>
 
@@ -281,7 +542,7 @@
                         <thead>
                             <tr>
                                 <th>Item</th>
-                                <th>Category</th>
+                                <th>Feature Tags</th>
                                 <th>In Stock</th>
                                 <th>Reorder Level</th>
                                 <th>Status</th>
@@ -301,22 +562,54 @@
                 <h2 id="formTitle">Add Stock Item</h2>
                 <form id="stockForm" class="form-grid">
                     <input id="itemName" type="text" placeholder="Item name" maxlength="60" required>
-                    <select id="itemCategory" required>
-                        <option value="">Select category</option>
-                        <option value="coffee">Coffee</option>
-                        <option value="bakery">Bakery</option>
-                        <option value="tea">Tea</option>
-                    </select>
+                    <div class="feature-tag-picker">
+                        <label class="feature-tag-help" for="selectedFeatureTags">Add Feature Tags</label>
+                        <button class="feature-tag-add-btn" type="button" id="openFeatureTagPickerBtn" aria-label="Add feature tags">+</button>
+                        <div class="feature-tag-list" id="selectedFeatureTagChips"></div>
+                    </div>
                     <input id="itemPrice" type="number" min="0" step="0.01" placeholder="Price (THB)" required>
                     <input id="itemStock" type="number" min="0" step="1" placeholder="In stock" required>
                     <input id="itemReorder" type="number" min="0" step="1" placeholder="Reorder level" required>
-                    <input id="itemImage" type="url" placeholder="Image URL (optional)">
                     <button class="action-btn" type="submit" id="saveItemBtn">Save Item</button>
                     <button class="action-btn" type="button" id="cancelEditBtn" style="display:none;background:#64748b;">Cancel Edit</button>
                 </form>
                 <p class="muted-note">Changes sync live to POS menu from Firestore collection <b>products</b>.</p>
                 <p class="helper" id="formStatus">Ready.</p>
             </aside>
+        </div>
+    </div>
+
+    <div class="feature-tag-modal" id="featureTagModal" hidden>
+        <div class="feature-tag-modal-card" role="dialog" aria-modal="true" aria-labelledby="featureTagModalTitle">
+            <h3 id="featureTagModalTitle">Create Feature Tag</h3>
+            <p>Add a reusable label and category for inventory tagging.</p>
+            <form id="featureTagForm" class="modal-form">
+                <input id="featureTagName" type="text" placeholder="Tag name" maxlength="40" required>
+                <div>
+                    <div class="feature-tag-help" style="margin-bottom:8px;">Feature tag category</div>
+                    <div class="category-row">
+                        <input id="featureTagCategory" type="text" placeholder="Category name" maxlength="40" required>
+                        <button type="button" class="category-add-btn" id="addFeatureTagCategoryBtn">Add Category</button>
+                    </div>
+                    <div class="category-chip-list" id="featureTagCategoryChips"></div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="modal-secondary-btn" id="cancelFeatureTagBtn">Cancel</button>
+                    <button type="submit" class="modal-primary-btn">Create Tag</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="feature-tag-picker-modal" id="featureTagPickerModal" hidden>
+        <div class="feature-tag-picker-card" role="dialog" aria-modal="true" aria-labelledby="featureTagPickerTitle">
+            <h3 id="featureTagPickerTitle">Select Feature Tags</h3>
+            <p>Choose one or more saved tags for this stock item.</p>
+            <div id="featureTagOptions" class="feature-tag-groups"></div>
+            <div class="modal-actions">
+                <button type="button" class="modal-secondary-btn" id="cancelFeatureTagPickerBtn">Cancel</button>
+                <button type="button" class="modal-primary-btn" id="applyFeatureTagsBtn">Apply Tags</button>
+            </div>
         </div>
     </div>
 

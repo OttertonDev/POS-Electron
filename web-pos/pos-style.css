@@ -168,33 +168,162 @@ body {
     gap: 10px;
 }
 
+.feature-tree {
+    display: grid;
+    gap: 12px;
+}
+
+.tree-all-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 16px;
+    background: white;
+    border: 1px solid rgba(148, 163, 184, 0.12);
+    box-shadow: var(--card-shadow);
+    font-weight: 700;
+    color: var(--text-dark);
+}
+
+.tree-all-option input {
+    width: 18px;
+    height: 18px;
+}
+
+.tree-list {
+    display: grid;
+    gap: 10px;
+}
+
+.tree-empty {
+    padding: 14px;
+    border-radius: 14px;
+    background: white;
+    border: 1px dashed #cbd5e1;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.tree-folder {
+    background: white;
+    border: 1px solid rgba(148, 163, 184, 0.12);
+    border-radius: 18px;
+    box-shadow: var(--card-shadow);
+    overflow: hidden;
+}
+
+.tree-folder-header {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 14px;
+    background: white;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
+    color: var(--text-dark);
+}
+
+.tree-folder-header .folder-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+}
+
+.tree-folder-header input {
+    width: 18px;
+    height: 18px;
+}
+
+.tree-folder-header .folder-meta {
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.tree-folder-header .folder-toggle {
+    color: var(--text-muted);
+    transition: transform 0.18s ease;
+}
+
+.tree-folder.is-open .folder-toggle {
+    transform: rotate(90deg);
+}
+
+.tree-folder-body {
+    display: grid;
+    gap: 8px;
+    padding: 0 14px 14px 40px;
+}
+
+.tree-folder-body[hidden] {
+    display: none;
+}
+
+.tree-tag-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+}
+
+.tree-tag-option input {
+    width: 16px;
+    height: 16px;
+}
+
+.tree-tag-option span {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-dark);
+}
+
 .cat-btn {
     display: flex;
     align-items: center;
+    justify-content: flex-start;
     gap: 12px;
+    width: 100%;
     padding: 12px 14px;
     border: none;
     background: #ffffff;
-    border-radius: 12px;
+    border-radius: 16px;
     cursor: pointer;
     font-family: inherit;
     font-size: 0.95rem;
     font-weight: 600;
     color: var(--text-muted);
     box-shadow: var(--card-shadow);
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s, color 0.2s;
+    border: 1px solid rgba(148, 163, 184, 0.12);
+    position: relative;
+    overflow: hidden;
 }
 
 .cat-btn.active {
-    background-color: var(--primary-blue);
+    background: linear-gradient(135deg, var(--filter-accent, var(--primary-blue)), color-mix(in srgb, var(--filter-accent, var(--primary-blue)) 82%, white));
     color: white;
-    box-shadow: 0 8px 16px rgba(0, 123, 255, 0.25);
+    box-shadow: 0 10px 20px color-mix(in srgb, var(--filter-accent, var(--primary-blue)) 25%, transparent);
+    border-color: transparent;
 }
 
 .cat-btn:hover:not(.active) {
     transform: translateX(4px);
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
     color: var(--text-dark);
+}
+
+.cat-btn .icon {
+    position: relative;
+    z-index: 1;
 }
 
 .pos-products-panel {
@@ -254,12 +383,29 @@ body {
     box-shadow: 0 12px 20px rgba(0, 0, 0, 0.1);
 }
 
-.product-img {
+.product-media {
     width: 100%;
     aspect-ratio: 1;
-    background: #f1f5f9;
     border-radius: 12px;
-    object-fit: cover;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--media-accent) 22%, white), color-mix(in srgb, var(--media-accent) 12%, #f8fafc));
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    display: grid;
+    place-items: center;
+    color: var(--media-accent);
+    font-weight: 800;
+    font-size: 1.4rem;
+    letter-spacing: 0.04em;
+}
+
+.product-media span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 70%;
+    height: 70%;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.72);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
 .product-info h3 {
@@ -293,12 +439,6 @@ body {
     justify-content: center;
     height: 200px;
     color: var(--text-muted);
-}
-
-.empty-cart img {
-    width: 80px;
-    opacity: 0.3;
-    margin-bottom: 16px;
 }
 
 .cart-item {
@@ -336,8 +476,6 @@ body {
     font-size: 1.2rem;
 }
 
-<<<<<<< HEAD
-=======
 .checkout-note {
     margin: -4px 0 14px;
     font-size: 0.86rem;
@@ -345,43 +483,34 @@ body {
     line-height: 1.45;
 }
 
->>>>>>> 08d4f41 (Implement silent print service and receipt storage)
 .btn-checkout {
     width: 100%;
-    background-color: var(--primary-blue);
-    color: white;
-    border: none;
+    background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+    color: #94a3b8;
+    border: 1px solid #d1d5db;
     padding: 14px;
-    border-radius: 16px;
+    border-radius: 6px;
     font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 12px;
-    transition: transform 0.2s, opacity 0.2s;
+    letter-spacing: 0.01em;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    transition: transform 0.18s ease, background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
 }
 
-<<<<<<< HEAD
-.btn-checkout:disabled { opacity: 0.5; cursor: not-allowed; }
-=======
 .btn-checkout:disabled {
     opacity: 0.5;
     cursor: not-allowed;
 }
 
->>>>>>> 08d4f41 (Implement silent print service and receipt storage)
 .btn-checkout:hover:not(:disabled) {
-    opacity: 0.94;
+    background: linear-gradient(180deg, #ffffff 0%, #eef2f7 100%);
+    border-color: #cbd5e1;
+    color: #64748b;
     transform: translateY(-1px);
-}
-
-.checkout-note {
-    margin: -4px 0 14px;
-    font-size: 0.86rem;
-    color: var(--text-muted);
-    line-height: 1.45;
 }
 
 @media (max-width: 1200px) {

@@ -34,17 +34,11 @@
         <div class="main-content pos-main-content">
             <aside class="nav-cards pos-categories-panel">
                 <div class="panel-title-row">
-                    <h3>Menu Categories</h3>
+                    <h3>Feature Tag Filter</h3>
                 </div>
-                <nav class="categories">
-                    <button class="cat-btn active" data-category="coffee">
-                        <span class="icon">Coffee</span>
-                    </button>
-                    <button class="cat-btn" data-category="bakery">
-                        <span class="icon">Bakery</span>
-                    </button>
-                    <button class="cat-btn" data-category="tea">
-                        <span class="icon">Tea</span>
+                <nav class="categories" id="featureTagFilterList" aria-label="Feature tag filter">
+                    <button class="cat-btn active" type="button" data-tag-key="all">
+                        <span class="icon">All Items</span>
                     </button>
                 </nav>
             </aside>
@@ -69,7 +63,6 @@
 
                 <div class="cart-items" id="cartList">
                     <div class="empty-cart">
-                        <img src="https://cdn-icons-png.flaticon.com/512/11329/11329060.png" alt="Empty Cart">
                         <p>Order is empty</p>
                     </div>
                 </div>
@@ -92,7 +85,7 @@
                 <p class="checkout-note" id="checkoutNote">Print service must be online before the sale can complete.</p>
 
                 <button class="btn-checkout" id="checkoutBtn" disabled>
-                    <span class="btn-icon">OK</span> Complete Sale
+                    Complete Sale
                 </button>
             </section>
         </div>
