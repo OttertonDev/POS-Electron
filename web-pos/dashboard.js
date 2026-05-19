@@ -8,6 +8,9 @@ const dashboardState = {
 };
 
 const stockCard = document.getElementById('stockLink');
+const incomeCard = document.getElementById('incomeLink');
+const receiptSettingsCard = document.getElementById('receiptSettingsLink');
+const preferencesCard = document.getElementById('preferencesLink');
 const permissionModalOverlay = document.getElementById('permissionModalOverlay');
 const permissionModalCloseBtn = document.getElementById('permissionModalCloseBtn');
 
@@ -33,7 +36,7 @@ function syncDashboardAccess() {
     const isAdmin = dashboardState.role === 'administrator';
     const restricted = isStaff || (!isAdmin && !dashboardState.role);
 
-    [stockCard].forEach((card) => {
+    [stockCard, receiptSettingsCard, preferencesCard].forEach((card) => {
         if (!card) {
             return;
         }
@@ -149,6 +152,9 @@ const revenueChart = new Chart(ctx, {
 
 // Navigation Logic
 handleCardNavigation(document.getElementById('posLink'), 'pos.html', false);
+handleCardNavigation(incomeCard, 'income.html', false);
+handleCardNavigation(receiptSettingsCard, 'receipt-settings.html', true);
+handleCardNavigation(preferencesCard, 'preferences.html', true);
 handleCardNavigation(stockCard, 'stock.html', true);
 
 syncDashboardAccess();

@@ -66,7 +66,7 @@ function padLine(left, right) {
 }
 
 function pushAlign(chunks, align) {
-  const mode = align === "center" ? 0x01 : 0x00;
+  const mode = align === "center" ? 0x01 : align === "right" ? 0x02 : 0x00;
   chunks.push(Buffer.from([ESC, 0x61, mode]));
 }
 
@@ -77,12 +77,93 @@ function pushTextLine(chunks, text) {
   }
 }
 
-function buildReceiptBuffer(payload) {
-  const chunks = [];
+function pushAlignedTextLine(chunks, text, align = "left") {
+  pushAlign(chunks, align);
+  pushTextLine(chunks, text);
+}
 
-  chunks.push(Buffer.from([ESC, 0x40]));
-  chunks.push(Buffer.from([ESC, 0x74, 0xff]));
+function renderItems(chunks, payload) {
+  pushAlign(chunks, "left");
+  for (const item of payload.items) {
+    pushTextLine(chunks, `${item.qty} ${item.name}`);
+    const detailLine = item.tagLine || item.variantLine;
+    if (detailLine) {
+      pushTextLine(chunks, `  ${detailLine}`);
+    }
+    pushTextLine(chunks, padLine("", item.price));
+  }
+}
 
+function renderTotals(chunks, payload) {
+  pushAlign(chunks, "left");
+  if (payload.subtotal) {
+    pushTextLine(chunks, padLine("Subtotal", payload.subtotal));
+  }
+
+  if (payload.tax) {
+    pushTextLine(chunks, padLine("Tax", payload.tax));
+  }
+
+  pushTextLine(chunks, padLine("Total", payload.total));
+}
+
+function renderPayment(chunks, payload) {
+  pushAlign(chunks, "left");
+  if (payload.cash) {
+    pushTextLine(chunks, padLine("Cash", payload.cash));
+  }
+
+  if (payload.change) {
+    pushTextLine(chunks, padLine("Change", payload.change));
+  }
+}
+
+function getFieldValue(payload, source) {
+  if (!source) {
+    return "";
+  }
+  return payload[source] || "";
+}
+
+function renderLayoutLine(chunks, payload, line) {
+  if (line.visible === false) {
+    return;
+  }
+
+  if (line.type === "divider") {
+    pushAlignedTextLine(chunks, "-".repeat(MAX_LINE_WIDTH), line.align);
+    return;
+  }
+
+  if (line.type === "items") {
+    renderItems(chunks, payload);
+    return;
+  }
+
+  if (line.type === "totals") {
+    renderTotals(chunks, payload);
+    return;
+  }
+
+  if (line.type === "payment") {
+    renderPayment(chunks, payload);
+    return;
+  }
+
+  const rawValue = line.type === "text" ? line.text : getFieldValue(payload, line.source || line.type);
+  const value = line.label && rawValue ? `${line.label}: ${rawValue}` : rawValue;
+  if (value) {
+    pushAlignedTextLine(chunks, value, line.align);
+  }
+}
+
+function renderConfiguredReceipt(chunks, payload) {
+  for (const line of payload.receiptLayout) {
+    renderLayoutLine(chunks, payload, line);
+  }
+}
+
+function renderDefaultReceipt(chunks, payload) {
   pushAlign(chunks, "center");
   pushTextLine(chunks, payload.storeName);
 
@@ -103,35 +184,30 @@ function buildReceiptBuffer(payload) {
   pushAlign(chunks, "left");
   pushTextLine(chunks, "-".repeat(MAX_LINE_WIDTH));
 
-  for (const item of payload.items) {
-    pushTextLine(chunks, `${item.qty} ${item.name}`);
-    pushTextLine(chunks, padLine("", item.price));
-  }
+  renderItems(chunks, payload);
 
   pushTextLine(chunks, "-".repeat(MAX_LINE_WIDTH));
 
-  if (payload.subtotal) {
-    pushTextLine(chunks, padLine("Subtotal", payload.subtotal));
-  }
-
-  if (payload.tax) {
-    pushTextLine(chunks, padLine("Tax", payload.tax));
-  }
-
-  pushTextLine(chunks, padLine("Total", payload.total));
-
-  if (payload.cash) {
-    pushTextLine(chunks, padLine("Cash", payload.cash));
-  }
-
-  if (payload.change) {
-    pushTextLine(chunks, padLine("Change", payload.change));
-  }
+  renderTotals(chunks, payload);
+  renderPayment(chunks, payload);
 
   if (payload.footer) {
     pushTextLine(chunks, "-".repeat(MAX_LINE_WIDTH));
     pushAlign(chunks, "center");
     pushTextLine(chunks, payload.footer);
+  }
+}
+
+function buildReceiptBuffer(payload) {
+  const chunks = [];
+
+  chunks.push(Buffer.from([ESC, 0x40]));
+  chunks.push(Buffer.from([ESC, 0x74, 0xff]));
+
+  if (Array.isArray(payload.receiptLayout) && payload.receiptLayout.length > 0) {
+    renderConfiguredReceipt(chunks, payload);
+  } else {
+    renderDefaultReceipt(chunks, payload);
   }
 
   chunks.push(Buffer.from([ESC, 0x64, 0x03]));

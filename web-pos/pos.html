@@ -19,7 +19,7 @@
                 </button>
                 <div class="logo-text">
                     <h1>POS Checkout</h1>
-                    <p>Unified with dashboard style</p>
+                    <p>Fast feature-tag checkout</p>
                 </div>
             </div>
             <div class="top-actions">
@@ -34,12 +34,14 @@
         <div class="main-content pos-main-content">
             <aside class="nav-cards pos-categories-panel">
                 <div class="panel-title-row">
-                    <h3>Feature Tag Filter</h3>
+                    <h3>Feature Tags</h3>
                 </div>
-                <nav class="categories" id="featureTagFilterList" aria-label="Feature tag filter">
-                    <button class="cat-btn active" type="button" data-tag-key="all">
-                        <span class="icon">All Items</span>
-                    </button>
+                <nav class="feature-tree" aria-label="Feature tag filters">
+                    <label class="tree-all-option">
+                        <input id="featureTagAllCheckbox" type="checkbox" checked>
+                        <span>All Items</span>
+                    </label>
+                    <div class="tree-list" id="featureTagTreeList"></div>
                 </nav>
             </aside>
 
@@ -47,7 +49,7 @@
                 <div class="section-header pos-section-header">
                     <h2>Products</h2>
                     <div class="search-bar">
-                        <input type="text" placeholder="Search menu items...">
+                        <input id="productSearch" type="text" placeholder="Search item name or feature tag...">
                     </div>
                 </div>
 

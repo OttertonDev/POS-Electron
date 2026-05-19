@@ -259,6 +259,7 @@ h1, h2, h3, h4, h5, h6,
 .icon-pink-light { background: #fdf2f8; color: var(--icon-pink); }
 .icon-red-light { background: #fff1f2; color: var(--icon-red); }
 .icon-orange-light { background: #fff7ed; color: #f97316; }
+.icon-blue-light { background: #e0f2fe; color: #0284c7; }
 
 .nav-details h3 {
     font-size: 1.1rem;

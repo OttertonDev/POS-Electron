@@ -1,0 +1,210 @@
+:root {
+    --border: #e2e8f0;
+    --text-muted: #64748b;
+}
+
+.income-wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+}
+
+.back-btn {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    height: 42px;
+    width: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #1e293b;
+    box-shadow: var(--card-shadow);
+    cursor: pointer;
+}
+
+.service-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: white;
+    color: var(--text-muted);
+    box-shadow: var(--card-shadow);
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.service-status-ready {
+    color: #166534;
+    background: #dcfce7;
+    border-color: #bbf7d0;
+}
+
+.service-status-offline,
+.service-status-error {
+    color: #991b1b;
+    background: #fee2e2;
+    border-color: #fecaca;
+}
+
+.service-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.income-layout {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 20px;
+    align-items: start;
+}
+
+.income-panel {
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid white;
+    border-radius: 26px;
+    padding: 22px;
+}
+
+.income-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.income-toolbar h2 {
+    margin: 0 0 4px;
+}
+
+.income-toolbar p {
+    color: var(--text-muted);
+}
+
+.income-toolbar input {
+    width: min(360px, 100%);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 11px 13px;
+    font-family: inherit;
+}
+
+.receipt-list {
+    display: grid;
+    gap: 10px;
+}
+
+.receipt-row {
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: white;
+    padding: 14px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    cursor: pointer;
+}
+
+.receipt-row:hover,
+.receipt-row.is-selected {
+    border-color: #007bff;
+}
+
+.receipt-id {
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.receipt-meta {
+    color: var(--text-muted);
+    font-size: 0.84rem;
+    margin-top: 4px;
+}
+
+.receipt-total {
+    font-weight: 900;
+    color: #007bff;
+}
+
+.receipt-detail {
+    position: sticky;
+    top: 20px;
+}
+
+.receipt-detail h2 {
+    margin: 0 0 8px;
+}
+
+.detail-line {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.detail-items {
+    display: grid;
+    gap: 10px;
+    margin: 16px 0;
+}
+
+.detail-item {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 12px;
+}
+
+.detail-item strong,
+.detail-item span {
+    display: block;
+}
+
+.detail-item span {
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    margin-top: 3px;
+}
+
+.reprint-btn {
+    width: 100%;
+    border: none;
+    border-radius: 12px;
+    padding: 13px 16px;
+    color: white;
+    background: #007bff;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.reprint-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.empty-state {
+    color: var(--text-muted);
+    text-align: center;
+    padding: 34px 12px;
+}
+
+@media (max-width: 900px) {
+    .income-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .income-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .receipt-detail {
+        position: static;
+    }
+}

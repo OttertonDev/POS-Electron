@@ -25,7 +25,37 @@ function validateItem(item, index) {
     throw new ServiceError("PAYLOAD_INVALID", `Item ${index + 1} must include qty, name, and price.`, 400);
   }
 
-  return { qty, name, price };
+  return {
+    qty,
+    name,
+    price,
+    tagLine: getOptionalString(item.tagLine),
+    variantLine: getOptionalString(item.variantLine)
+  };
+}
+
+function validateReceiptLayout(layout) {
+  if (!Array.isArray(layout)) {
+    return [];
+  }
+
+  return layout
+    .filter((line) => line && typeof line === "object")
+    .slice(0, 40)
+    .map((line, index) => {
+      const type = getOptionalString(line.type) || "field";
+      const align = getOptionalString(line.align);
+
+      return {
+        id: getOptionalString(line.id) || `${type}-${index}`,
+        type,
+        source: getOptionalString(line.source),
+        label: getOptionalString(line.label),
+        align: ["left", "center", "right"].includes(align) ? align : "left",
+        visible: line.visible !== false,
+        text: getOptionalString(line.text)
+      };
+    });
 }
 
 function validatePrintPayload(payload) {
@@ -58,7 +88,8 @@ function validatePrintPayload(payload) {
     total,
     cash: getOptionalString(payload.cash),
     change: getOptionalString(payload.change),
-    footer: getOptionalString(payload.footer)
+    footer: getOptionalString(payload.footer),
+    receiptLayout: validateReceiptLayout(payload.receiptLayout)
   };
 }
 

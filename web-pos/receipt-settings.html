@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Receipt Builder | Otterton's Point of Sale</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="dashboard.css">
+    <link rel="stylesheet" href="theme.css">
+    <link rel="stylesheet" href="receipt-settings.css">
+    <script type="module" src="firebase-init.js"></script>
+</head>
+<body data-page="receipt-settings">
+    <div class="settings-shell">
+        <header class="top-nav">
+            <div class="logo-area">
+                <button class="back-btn" onclick="window.location.href='index.html'" aria-label="Back to dashboard">
+                    <i data-lucide="arrow-left"></i>
+                </button>
+                <div class="logo-text">
+                    <h1>Receipt Builder</h1>
+                    <p>ใบเสร็จ • line-by-line print layout</p>
+                </div>
+            </div>
+            <div class="settings-actions">
+                <input type="file" id="receiptJsonInput" accept="application/json" hidden>
+                <button type="button" class="ghost-btn" id="downloadReceiptJsonBtn">
+                    <i data-lucide="download"></i>
+                    Download JSON
+                </button>
+                <button type="button" class="ghost-btn" id="uploadReceiptJsonBtn">
+                    <i data-lucide="upload"></i>
+                    Upload JSON
+                </button>
+                <button type="button" class="ghost-btn" id="resetReceiptBtn">
+                    <i data-lucide="rotate-ccw"></i>
+                    Reset
+                </button>
+                <button type="button" class="primary-btn" id="saveReceiptBtn">
+                    <i data-lucide="save"></i>
+                    Save Receipt
+                </button>
+            </div>
+        </header>
+
+        <main class="builder-grid">
+            <section class="builder-panel store-panel">
+                <div class="panel-heading">
+                    <span class="eyebrow">Store Info</span>
+                    <h2>Printed header and footer</h2>
+                </div>
+                <label class="field-label">
+                    Store name
+                    <input id="storeNameInput" type="text" autocomplete="organization">
+                </label>
+                <label class="field-label">
+                    Address
+                    <textarea id="addressInput" rows="3"></textarea>
+                </label>
+                <label class="field-label">
+                    Phone
+                    <input id="phoneInput" type="text" autocomplete="tel">
+                </label>
+                <label class="field-label">
+                    Footer
+                    <input id="footerInput" type="text">
+                </label>
+                <label class="field-label">
+                    Max Feature Tags on item line
+                    <input id="maxFeatureTagsInput" type="number" min="0" max="3" step="1">
+                </label>
+                <p class="muted-note">Default is 3. Checkout keeps old receipts readable with the older variant line fallback.</p>
+            </section>
+
+            <section class="builder-panel line-panel">
+                <div class="panel-heading">
+                    <span class="eyebrow">Layout Lines</span>
+                    <h2>Edit each printed row</h2>
+                </div>
+                <div class="line-list" id="lineList"></div>
+                <div class="save-status" id="saveStatus" role="status"></div>
+            </section>
+
+            <aside class="builder-panel preview-panel">
+                <div class="panel-heading">
+                    <span class="eyebrow">Live Preview</span>
+                    <h2>Receipt paper</h2>
+                </div>
+                <div class="receipt-paper" id="receiptPreview"></div>
+            </aside>
+        </main>
+    </div>
+
+    <div class="toast" id="receiptToast" role="status" aria-live="polite" hidden></div>
+
+    <script type="module" src="receipt-settings.js"></script>
+    <script type="module" src="auth.js"></script>
+    <script>
+        if (window.lucide) {
+            lucide.createIcons();
+        }
+    </script>
+</body>
+</html>

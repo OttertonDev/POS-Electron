@@ -10,12 +10,14 @@ import {
     updateDoc,
     deleteDoc,
     serverTimestamp,
-    getDocs
+    getDocs,
+    runTransaction
 } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
 
 const db = getFirestore(app);
 const productsRef = collection(db, "products");
 const featureTagsRef = collection(db, "featureTags");
+const stockAdjustmentsRef = collection(db, "stockAdjustments");
 
 const tableBody = document.getElementById("stockTableBody");
 const stockForm = document.getElementById("stockForm");
@@ -23,11 +25,15 @@ const formTitle = document.getElementById("formTitle");
 const formStatus = document.getElementById("formStatus");
 const saveItemBtn = document.getElementById("saveItemBtn");
 const cancelEditBtn = document.getElementById("cancelEditBtn");
+const openStockItemModalBtn = document.getElementById("openStockItemModalBtn");
+const stockItemModal = document.getElementById("stockItemModal");
+const closeStockItemModalBtn = document.getElementById("closeStockItemModalBtn");
 const createFeatureTagBtn = document.getElementById("createFeatureTagBtn");
 const featureTagModal = document.getElementById("featureTagModal");
 const featureTagForm = document.getElementById("featureTagForm");
 const featureTagNameInput = document.getElementById("featureTagName");
 const cancelFeatureTagBtn = document.getElementById("cancelFeatureTagBtn");
+const cancelFeatureTagSecondaryBtn = document.getElementById("cancelFeatureTagSecondaryBtn");
 const openFeatureTagPickerBtn = document.getElementById("openFeatureTagPickerBtn");
 const featureTagPickerModal = document.getElementById("featureTagPickerModal");
 const featureTagOptions = document.getElementById("featureTagOptions");
@@ -37,12 +43,27 @@ const selectedFeatureTagChips = document.getElementById("selectedFeatureTagChips
 const featureTagCategoryInput = document.getElementById("featureTagCategory");
 const addFeatureTagCategoryBtn = document.getElementById("addFeatureTagCategoryBtn");
 const featureTagCategoryChips = document.getElementById("featureTagCategoryChips");
+const exportCsvBtn = document.getElementById("exportCsvBtn");
+const importCsvBtn = document.getElementById("importCsvBtn");
+const csvImportModal = document.getElementById("csvImportModal");
+const csvImportForm = document.getElementById("csvImportForm");
+const csvImportFile = document.getElementById("csvImportFile");
+const csvImportSummary = document.getElementById("csvImportSummary");
+const applyCsvImportBtn = document.getElementById("applyCsvImportBtn");
+const cancelCsvImportBtn = document.getElementById("cancelCsvImportBtn");
+const stockAdjustModal = document.getElementById("stockAdjustModal");
+const stockAdjustForm = document.getElementById("stockAdjustForm");
+const stockAdjustType = document.getElementById("stockAdjustType");
+const stockAdjustQty = document.getElementById("stockAdjustQty");
+const stockAdjustReason = document.getElementById("stockAdjustReason");
+const stockAdjustItemLabel = document.getElementById("stockAdjustItemLabel");
 
 const inputs = {
     name: document.getElementById("itemName"),
     price: document.getElementById("itemPrice"),
     stockQty: document.getElementById("itemStock"),
-    reorderLevel: document.getElementById("itemReorder")
+    reorderLevel: document.getElementById("itemReorder"),
+    active: document.getElementById("itemActive")
 };
 
 let editingId = null;
@@ -52,6 +73,8 @@ let availableFeatureCategories = [];
 let selectedFeatureTags = [];
 let pickerOptions = [];
 let inventoryLoadTimeoutId = null;
+let csvPreviewRows = [];
+let adjustingItem = null;
 
 const demoSeed = [
     {
@@ -111,13 +134,30 @@ function normalizeCategoryKey(value) {
     return normalizeCategory(value).toLowerCase();
 }
 
+function getFeatureTagSignature(name, tags) {
+    const tagPart = normalizeFeatureTags(tags)
+        .map((tag) => `${normalizeCategoryKey(tag.category)}:${normalizeCategoryKey(tag.name)}`)
+        .sort()
+        .join("|");
+    return `${normalizeCategoryKey(name)}::${tagPart}`;
+}
+
+function getAuthSnapshot() {
+    const state = window.webPosAuthState || {};
+    return {
+        uid: state.user?.uid || "",
+        email: state.user?.email || "",
+        role: state.role || ""
+    };
+}
+
 function renderCategoryChips() {
     if (!featureTagCategoryChips) {
         return;
     }
 
     if (availableFeatureCategories.length === 0) {
-        featureTagCategoryChips.innerHTML = '<span class="feature-tag-chip">No categories yet</span>';
+        featureTagCategoryChips.innerHTML = '<span class="feature-tag-chip">No Tags Groups yet</span>';
         return;
     }
 
@@ -147,6 +187,9 @@ function openModal(modal) {
     }
 
     modal.hidden = false;
+    if (window.lucide) {
+        lucide.createIcons();
+    }
 }
 
 function closeModal(modal) {
@@ -272,7 +315,7 @@ function renderFeatureTagPicker() {
     featureTagOptions.innerHTML = Array.from(groups.entries()).map(([groupName, tags]) => `
         <section class="feature-tag-group">
             <div class="feature-tag-group-title">
-                <span>${escapeHtml(groupName)}</span>
+                <span>${escapeHtml(groupName)} Tags Group</span>
                 <span>${tags.length} tag${tags.length === 1 ? "" : "s"}</span>
             </div>
             <div class="feature-tag-card-grid">
@@ -284,7 +327,7 @@ function renderFeatureTagPicker() {
                                 <input type="checkbox" data-feature-tag-id="${escapeHtml(tag.id)}" ${checked}>
                                 <span>
                                     <strong>${escapeHtml(tag.name)}</strong>
-                                    <span>${escapeHtml(groupName)}</span>
+                                    <span>${escapeHtml(groupName)} Tags Group</span>
                                 </span>
                             </label>
                         </div>
@@ -300,10 +343,23 @@ function resetForm() {
     stockForm.reset();
     formTitle.textContent = "Add Stock Item";
     saveItemBtn.textContent = "Save Item";
-    cancelEditBtn.style.display = "none";
+    cancelEditBtn.textContent = "Cancel";
     selectedFeatureTags = [];
     updateSelectedFeatureTagUI();
     setStatus("Ready.");
+}
+
+function openStockItemForm(mode = "add") {
+    if (mode === "add") {
+        resetForm();
+    }
+    openModal(stockItemModal);
+    window.setTimeout(() => inputs.name?.focus(), 50);
+}
+
+function closeStockItemForm() {
+    closeModal(stockItemModal);
+    resetForm();
 }
 
 function toSafeNumber(value, fallback = 0) {
@@ -335,6 +391,7 @@ function renderRows(rows) {
                     <td><span class="stock-pill ${statusClass}">${statusLabel}</span></td>
                     <td>
                         <div class="table-actions">
+                            <button class="mini-btn adjust" data-action="adjust" data-id="${item.id}">Adjust</button>
                             <button class="mini-btn edit" data-action="edit" data-id="${item.id}">Edit</button>
                             <button class="mini-btn delete" data-action="delete" data-id="${item.id}">Delete</button>
                         </div>
@@ -378,7 +435,7 @@ function startFeatureTagSync() {
             const data = snap.data();
             return {
                 id: snap.id,
-                name: String(data.name || "Unnamed Tag").trim(),
+                name: String(data.name || "Unnamed Feature Tag").trim(),
                 category: normalizeCategory(data.category || "Uncategorized")
             };
         });
@@ -428,7 +485,8 @@ function startRealtimeSync() {
                 stockQty: toSafeNumber(data.stockQty),
                 reorderLevel: toSafeNumber(data.reorderLevel),
                 category: data.category || featureTags[0]?.name || "uncategorized",
-                featureTags
+                featureTags,
+                active: data.active !== false
             };
         });
 
@@ -456,6 +514,12 @@ function readFormPayload() {
         throw new Error("Item name and at least one feature tag are required.");
     }
 
+    const nextSignature = getFeatureTagSignature(name, featureTags);
+    const duplicate = cachedRows.find((item) => getFeatureTagSignature(item.name, item.featureTags) === nextSignature && item.id !== editingId);
+    if (duplicate) {
+        throw new Error("An item with the same name and feature tags already exists.");
+    }
+
     return {
         name,
         category: featureTags[0]?.category || "uncategorized",
@@ -463,7 +527,7 @@ function readFormPayload() {
         price,
         stockQty,
         reorderLevel,
-        active: true,
+        active: inputs.active.checked,
         updatedAt: serverTimestamp()
     };
 }
@@ -473,7 +537,7 @@ async function createFeatureTag() {
     const category = normalizeCategory(featureTagCategoryInput?.value);
 
     if (!name || !category) {
-        throw new Error("Tag name is required.");
+        throw new Error("Feature tag name and group are required.");
     }
 
     await addDoc(featureTagsRef, {
@@ -490,6 +554,236 @@ function applyPickerSelection() {
     selectedFeatureTags = pickerOptions.filter((tag) => selectedIds.has(tag.id));
     updateSelectedFeatureTagUI();
     closeModal(featureTagPickerModal);
+}
+
+function csvEscape(value) {
+    const text = String(value ?? "");
+    return /[",\n\r]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+}
+
+function parseCsv(text) {
+    const rows = [];
+    let row = [];
+    let cell = "";
+    let quoted = false;
+
+    for (let i = 0; i < text.length; i += 1) {
+        const char = text[i];
+        const next = text[i + 1];
+
+        if (quoted) {
+            if (char === '"' && next === '"') {
+                cell += '"';
+                i += 1;
+            } else if (char === '"') {
+                quoted = false;
+            } else {
+                cell += char;
+            }
+            continue;
+        }
+
+        if (char === '"') {
+            quoted = true;
+        } else if (char === ",") {
+            row.push(cell);
+            cell = "";
+        } else if (char === "\n") {
+            row.push(cell);
+            rows.push(row);
+            row = [];
+            cell = "";
+        } else if (char !== "\r") {
+            cell += char;
+        }
+    }
+
+    row.push(cell);
+    rows.push(row);
+    return rows.filter((entry) => entry.some((value) => String(value).trim()));
+}
+
+function parseBool(value, fallback = true) {
+    const text = String(value ?? "").trim().toLowerCase();
+    if (!text) {
+        return fallback;
+    }
+    return ["1", "true", "yes", "y", "active"].includes(text);
+}
+
+function buildCsvPayload(row, index, existingBySignature, seenSignatures) {
+    const errors = [];
+    const price = Number(row.price);
+    const stockQty = Math.floor(Number(row.stockQty));
+    const reorderLevel = Math.floor(Number(row.reorderLevel));
+
+    if (!String(row.name || "").trim()) errors.push("missing name");
+    if (!Number.isFinite(price) || price < 0) errors.push("invalid price");
+    if (!Number.isFinite(stockQty) || stockQty < 0) errors.push("invalid stockQty");
+    if (!Number.isFinite(reorderLevel) || reorderLevel < 0) errors.push("invalid reorderLevel");
+
+    const featureTags = normalizeFeatureTags(
+        String(row.featureTags || "")
+            .split("|")
+            .map((name) => ({ name: name.trim(), category: row.category || "Uncategorized" }))
+            .filter((tag) => tag.name)
+    );
+
+    if (featureTags.length === 0) {
+        featureTags.push({ id: normalizeCategoryKey(row.category || "Uncategorized"), name: row.category || "Uncategorized", category: row.category || "Uncategorized" });
+    }
+
+    const name = String(row.name || "").trim();
+    const signature = getFeatureTagSignature(name, featureTags);
+    if (seenSignatures.has(signature)) errors.push("duplicate name + featureTags in CSV");
+    seenSignatures.add(signature);
+
+    return {
+        rowNumber: index + 2,
+        mode: existingBySignature.has(signature) ? "update" : "create",
+        id: existingBySignature.get(signature)?.id || null,
+        errors,
+        payload: {
+            name,
+            category: String(row.category || featureTags[0]?.category || "Uncategorized").trim(),
+            featureTags,
+            price,
+            stockQty,
+            reorderLevel,
+            active: parseBool(row.active, true),
+            updatedAt: serverTimestamp()
+        }
+    };
+}
+
+function renderCsvPreview() {
+    const valid = csvPreviewRows.filter((row) => row.errors.length === 0);
+    const createCount = valid.filter((row) => row.mode === "create").length;
+    const updateCount = valid.filter((row) => row.mode === "update").length;
+    const errorRows = csvPreviewRows.filter((row) => row.errors.length > 0);
+
+    applyCsvImportBtn.disabled = valid.length === 0;
+    csvImportSummary.innerHTML = `
+        <strong>${valid.length} ready (${createCount} new, ${updateCount} updates)</strong>
+        ${errorRows.length ? `<span class="import-row-error">${errorRows.length} row(s) will be skipped until fixed.</span>` : ""}
+        ${csvPreviewRows.slice(0, 12).map((row) => {
+            const code = row.payload.name || "(missing name)";
+            const message = row.errors.length ? row.errors.join(", ") : row.mode;
+            return `<div class="${row.errors.length ? "import-row-error" : ""}">Row ${row.rowNumber}: ${escapeHtml(code)} - ${escapeHtml(message)}</div>`;
+        }).join("")}
+    `;
+}
+
+async function previewCsvFile(file) {
+    const text = await file.text();
+    const rows = parseCsv(text);
+    if (rows.length < 2) {
+        throw new Error("CSV needs a header row and at least one item row.");
+    }
+
+    const headers = rows[0].map((header) => String(header || "").trim());
+    const records = rows.slice(1).map((row) => Object.fromEntries(headers.map((header, index) => [header, row[index] ?? ""])));
+    const existingBySignature = new Map(cachedRows.map((item) => [getFeatureTagSignature(item.name, item.featureTags), item]));
+    const seenSignatures = new Set();
+    csvPreviewRows = records.map((row, index) => buildCsvPayload(row, index, existingBySignature, seenSignatures));
+    renderCsvPreview();
+}
+
+function exportInventoryCsv() {
+    const headers = ["name", "category", "featureTags", "price", "stockQty", "reorderLevel", "active"];
+    const lines = [
+        headers.join(","),
+        ...cachedRows.map((item) => {
+            const tags = normalizeFeatureTags(item.featureTags).map((tag) => tag.name).join("|");
+            const values = [
+                item.name,
+                item.category,
+                tags,
+                item.price,
+                item.stockQty,
+                item.reorderLevel,
+                item.active !== false ? "true" : "false"
+            ];
+            return values.map(csvEscape).join(",");
+        })
+    ];
+
+    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `otterton-inventory-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+}
+
+async function applyCsvImport() {
+    const valid = csvPreviewRows.filter((row) => row.errors.length === 0);
+    for (const row of valid) {
+        if (row.mode === "update" && row.id) {
+            await updateDoc(doc(db, "products", row.id), row.payload);
+        } else {
+            await addDoc(productsRef, {
+                ...row.payload,
+                createdAt: serverTimestamp()
+            });
+        }
+    }
+
+    setStatus(`Imported ${valid.length} CSV row(s).`);
+    csvPreviewRows = [];
+    closeModal(csvImportModal);
+}
+
+async function saveStockAdjustment() {
+    if (!adjustingItem) {
+        return;
+    }
+
+    const type = stockAdjustType.value;
+    const qty = Math.max(0, Math.floor(toSafeNumber(stockAdjustQty.value)));
+    const reason = stockAdjustReason.value.trim();
+    if (!reason) {
+        throw new Error("Adjustment reason is required.");
+    }
+
+    const productRef = doc(db, "products", adjustingItem.id);
+    await runTransaction(db, async (transaction) => {
+        const snap = await transaction.get(productRef);
+        if (!snap.exists()) {
+            throw new Error("Item no longer exists.");
+        }
+
+        const beforeQty = Math.max(0, Math.floor(Number(snap.data().stockQty) || 0));
+        const afterQty = type === "set"
+            ? qty
+            : type === "remove"
+                ? Math.max(0, beforeQty - qty)
+                : beforeQty + qty;
+        const delta = afterQty - beforeQty;
+
+        transaction.update(productRef, {
+            stockQty: afterQty,
+            updatedAt: serverTimestamp()
+        });
+
+        transaction.set(doc(stockAdjustmentsRef), {
+            productId: adjustingItem.id,
+            productName: adjustingItem.name || "",
+            featureTags: normalizeFeatureTags(adjustingItem.featureTags),
+            type,
+            reason,
+            beforeQty,
+            afterQty,
+            delta,
+            user: getAuthSnapshot(),
+            createdAt: serverTimestamp()
+        });
+    });
+
+    setStatus("Stock adjustment saved.");
+    closeModal(stockAdjustModal);
+    adjustingItem = null;
 }
 
 stockForm.addEventListener("submit", async (event) => {
@@ -509,6 +803,7 @@ stockForm.addEventListener("submit", async (event) => {
             setStatus("Item added.");
         }
 
+        closeModal(stockItemModal);
         resetForm();
     } catch (error) {
         console.error("Save stock item failed:", error);
@@ -517,7 +812,19 @@ stockForm.addEventListener("submit", async (event) => {
 });
 
 cancelEditBtn.addEventListener("click", () => {
-    resetForm();
+    closeStockItemForm();
+});
+
+openStockItemModalBtn?.addEventListener("click", () => {
+    openStockItemForm("add");
+});
+
+closeStockItemModalBtn?.addEventListener("click", closeStockItemForm);
+
+stockItemModal?.addEventListener("click", (event) => {
+    if (event.target === stockItemModal) {
+        closeStockItemForm();
+    }
 });
 
 createFeatureTagBtn?.addEventListener("click", () => {
@@ -531,6 +838,10 @@ createFeatureTagBtn?.addEventListener("click", () => {
 });
 
 cancelFeatureTagBtn?.addEventListener("click", () => {
+    closeModal(featureTagModal);
+});
+
+cancelFeatureTagSecondaryBtn?.addEventListener("click", () => {
     closeModal(featureTagModal);
 });
 
@@ -592,6 +903,75 @@ featureTagPickerModal?.addEventListener("click", (event) => {
     }
 });
 
+exportCsvBtn?.addEventListener("click", exportInventoryCsv);
+
+importCsvBtn?.addEventListener("click", () => {
+    csvImportForm?.reset();
+    csvPreviewRows = [];
+    applyCsvImportBtn.disabled = true;
+    csvImportSummary.textContent = "Choose a CSV file to preview changes.";
+    openModal(csvImportModal);
+});
+
+cancelCsvImportBtn?.addEventListener("click", () => {
+    closeModal(csvImportModal);
+});
+
+csvImportModal?.addEventListener("click", (event) => {
+    if (event.target === csvImportModal) {
+        closeModal(csvImportModal);
+    }
+});
+
+csvImportFile?.addEventListener("change", async () => {
+    try {
+        const file = csvImportFile.files?.[0];
+        if (!file) {
+            return;
+        }
+        await previewCsvFile(file);
+    } catch (error) {
+        console.error("CSV preview failed:", error);
+        csvPreviewRows = [];
+        applyCsvImportBtn.disabled = true;
+        csvImportSummary.innerHTML = `<span class="import-row-error">${escapeHtml(error.message || "Could not preview CSV.")}</span>`;
+    }
+});
+
+csvImportForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    try {
+        applyCsvImportBtn.disabled = true;
+        await applyCsvImport();
+    } catch (error) {
+        console.error("CSV import failed:", error);
+        setStatus(error.message || "Could not import CSV.", true);
+        applyCsvImportBtn.disabled = false;
+    }
+});
+
+cancelStockAdjustBtn?.addEventListener("click", () => {
+    adjustingItem = null;
+    closeModal(stockAdjustModal);
+});
+
+stockAdjustModal?.addEventListener("click", (event) => {
+    if (event.target === stockAdjustModal) {
+        adjustingItem = null;
+        closeModal(stockAdjustModal);
+    }
+});
+
+stockAdjustForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    try {
+        await saveStockAdjustment();
+    } catch (error) {
+        console.error("Stock adjustment failed:", error);
+        setStatus(error.message || "Could not save stock adjustment.", true);
+    }
+});
+
 tableBody.addEventListener("click", async (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) {
@@ -634,18 +1014,36 @@ tableBody.addEventListener("click", async (event) => {
             inputs.stockQty.value = item.stockQty;
             inputs.reorderLevel.value = item.reorderLevel;
             inputs.price.value = item.price;
+            inputs.active.checked = item.active !== false;
             selectedFeatureTags = normalizeFeatureTags(item.featureTags || item.category);
             updateSelectedFeatureTagUI();
 
             editingId = id;
             formTitle.textContent = "Edit Stock Item";
             saveItemBtn.textContent = "Update Item";
-            cancelEditBtn.style.display = "block";
+            cancelEditBtn.textContent = "Cancel";
             setStatus("Editing selected item.");
+            openStockItemForm("edit");
         } catch (error) {
             console.error("Edit setup failed:", error);
             setStatus("Could not load item for edit.", true);
         }
+        return;
+    }
+
+    if (action === "adjust") {
+        const item = cachedRows.find((entry) => entry.id === id);
+        if (!item) {
+            return;
+        }
+
+        adjustingItem = item;
+        stockAdjustForm?.reset();
+        stockAdjustType.value = "add";
+        if (stockAdjustItemLabel) {
+            stockAdjustItemLabel.textContent = `${item.name} current stock: ${item.stockQty}`;
+        }
+        openModal(stockAdjustModal);
     }
 });
 

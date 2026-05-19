@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Preferences | Otterton's Point of Sale</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="dashboard.css">
+    <link rel="stylesheet" href="theme.css">
+    <link rel="stylesheet" href="preferences.css">
+    <script type="module" src="firebase-init.js"></script>
+</head>
+<body data-page="preferences">
+    <div class="preferences-shell">
+        <header class="top-nav">
+            <div class="logo-area">
+                <button class="back-btn" onclick="window.location.href='index.html'" aria-label="Back to dashboard">
+                    <i data-lucide="arrow-left"></i>
+                </button>
+                <div class="logo-text">
+                    <h1>System Preferences</h1>
+                    <p>การกำหนดค่า • language, UI size, and service placeholders</p>
+                </div>
+            </div>
+            <button type="button" class="primary-btn" id="savePreferencesBtn">
+                <i data-lucide="save"></i>
+                Save Preferences
+            </button>
+        </header>
+
+        <main class="preferences-grid">
+            <section class="preference-panel">
+                <div class="panel-heading">
+                    <span class="eyebrow">Localization</span>
+                    <h2>Language</h2>
+                </div>
+                <div class="choice-grid" id="languageChoices">
+                    <button type="button" class="choice-card" data-language="en">
+                        <strong>English</strong>
+                        <span>Default app language</span>
+                    </button>
+                    <button type="button" class="choice-card" data-language="th">
+                        <strong>ไทย</strong>
+                        <span>Thai labels where available</span>
+                    </button>
+                </div>
+            </section>
+
+            <section class="preference-panel">
+                <div class="panel-heading">
+                    <span class="eyebrow">Interface</span>
+                    <h2>UI Size</h2>
+                </div>
+                <div class="choice-grid three" id="uiSizeChoices">
+                    <button type="button" class="choice-card" data-ui-size="compact">
+                        <strong>Compact</strong>
+                        <span>More rows on screen</span>
+                    </button>
+                    <button type="button" class="choice-card" data-ui-size="comfortable">
+                        <strong>Comfortable</strong>
+                        <span>Default spacing</span>
+                    </button>
+                    <button type="button" class="choice-card" data-ui-size="large">
+                        <strong>Large</strong>
+                        <span>Bigger controls</span>
+                    </button>
+                </div>
+            </section>
+
+            <section class="preference-panel post-panel">
+                <div class="panel-heading inline">
+                    <div>
+                        <span class="eyebrow">Thailand POST API</span>
+                        <h2>Coming soon</h2>
+                    </div>
+                    <span class="coming-soon-pill">Disabled</span>
+                </div>
+                <div class="disabled-grid" aria-disabled="true">
+                    <label class="field-label">
+                        API key
+                        <input id="postApiKeyInput" type="password" placeholder="Coming soon" disabled>
+                    </label>
+                    <label class="field-label">
+                        Sender name
+                        <input id="postSenderNameInput" type="text" placeholder="Coming soon" disabled>
+                    </label>
+                    <label class="field-label">
+                        Sender phone
+                        <input id="postSenderPhoneInput" type="text" placeholder="Coming soon" disabled>
+                    </label>
+                    <label class="field-label wide">
+                        Sender address
+                        <textarea id="postSenderAddressInput" rows="3" placeholder="Coming soon" disabled></textarea>
+                    </label>
+                    <label class="field-label wide">
+                        Service notes
+                        <textarea id="postNotesInput" rows="3" placeholder="Coming soon" disabled></textarea>
+                    </label>
+                </div>
+                <p class="muted-note">Fields are visible now so the settings shape is ready, but shipping integration is not active yet.</p>
+            </section>
+        </main>
+
+        <div class="save-status" id="preferencesStatus" role="status"></div>
+    </div>
+
+    <script type="module" src="preferences.js"></script>
+    <script type="module" src="auth.js"></script>
+    <script>
+        if (window.lucide) {
+            lucide.createIcons();
+        }
+    </script>
+</body>
+</html>

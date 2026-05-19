@@ -8,13 +8,15 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         :root {
-            --primary-blue: #007bff;
-            --bg-light-blue: #E7F3FF;
-            --text-dark: #1e293b;
-            --text-muted: #64748b;
-            --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-            --card-radius: 20px;
-            --border: #e2e8f0;
+            --primary-blue: #0969da;
+            --bg-light-blue: #f4f7fb;
+            --text-dark: #172033;
+            --text-muted: #62708a;
+            --card-shadow: 0 14px 34px rgba(22, 32, 51, 0.08);
+            --card-radius: 16px;
+            --border: #d8e0ea;
+            --ink: #101827;
+            --success: #0f8a4c;
         }
 
         * {
@@ -25,14 +27,16 @@
 
         body {
             font-family: 'Google Sans', 'Inter', 'Prompt', sans-serif;
-            background-color: var(--bg-light-blue);
+            background:
+                linear-gradient(180deg, #eef4fb 0%, #f8fafc 260px),
+                var(--bg-light-blue);
             color: var(--text-dark);
             min-height: 100vh;
-            padding: 32px;
+            padding: 24px;
         }
 
         .stock-wrap {
-            max-width: 1180px;
+            max-width: 1260px;
             margin: 0 auto;
         }
 
@@ -87,22 +91,37 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            flex-wrap: wrap;
         }
 
-        .feature-tag-button {
+        .primary-action,
+        .feature-tag-button,
+        .utility-button {
             border: none;
-            border-radius: 999px;
-            padding: 11px 16px;
+            border-radius: 12px;
+            padding: 12px 16px;
             font-size: 0.88rem;
-            font-weight: 700;
+            font-weight: 900;
             color: white;
-            background: linear-gradient(135deg, #007bff, #00a3ff);
-            box-shadow: 0 10px 24px rgba(0, 123, 255, 0.22);
+            background: var(--primary-blue);
+            box-shadow: 0 14px 24px rgba(9, 105, 218, 0.18);
             cursor: pointer;
             transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
         }
 
-        .feature-tag-button:hover {
+        .utility-button {
+            background: var(--ink);
+            box-shadow: none;
+        }
+
+        .feature-tag-button {
+            background: #0f8a4c;
+            box-shadow: 0 14px 24px rgba(15, 138, 76, 0.16);
+        }
+
+        .primary-action:hover,
+        .feature-tag-button:hover,
+        .utility-button:hover {
             transform: translateY(-1px);
             box-shadow: 0 14px 28px rgba(0, 123, 255, 0.28);
         }
@@ -112,18 +131,15 @@
         }
 
         .layout {
-            display: grid;
-            grid-template-columns: 1fr 300px;
-            gap: 20px;
-            align-items: start;
+            display: block;
         }
 
         .panel {
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(10px);
-            border-radius: 24px;
-            border: 1px solid white;
+            background: #ffffff;
+            border-radius: 18px;
+            border: 1px solid var(--border);
             padding: 22px;
+            box-shadow: var(--card-shadow);
         }
 
         .panel h2 {
@@ -135,7 +151,7 @@
             overflow-x: auto;
             background: white;
             border-radius: var(--card-radius);
-            box-shadow: var(--card-shadow);
+            box-shadow: none;
             border: 1px solid var(--border);
         }
 
@@ -209,7 +225,8 @@
         }
 
         .form-grid input,
-        .form-grid select {
+        .form-grid select,
+        .form-grid textarea {
             width: 100%;
             border: 1px solid var(--border);
             border-radius: 12px;
@@ -217,6 +234,20 @@
             font-family: inherit;
             font-size: 0.9rem;
             background: white;
+        }
+
+        .check-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            font-weight: 700;
+        }
+
+        .check-row input {
+            width: 18px;
+            height: 18px;
         }
 
         .feature-tag-picker {
@@ -266,32 +297,112 @@
         }
 
         .feature-tag-modal,
-        .feature-tag-picker-modal {
+        .feature-tag-picker-modal,
+        .stock-item-modal {
             position: fixed;
             inset: 0;
-            background: rgba(15, 23, 42, 0.55);
+            background: rgba(15, 23, 42, 0.58);
             display: grid;
             place-items: center;
             z-index: 50;
             padding: 16px;
+            animation: modal-overlay-in 0.18s ease-out;
         }
 
         .feature-tag-modal[hidden],
-        .feature-tag-picker-modal[hidden] {
+        .feature-tag-picker-modal[hidden],
+        .stock-item-modal[hidden] {
             display: none;
         }
 
         .feature-tag-modal-card,
-        .feature-tag-picker-card {
+        .feature-tag-picker-card,
+        .stock-item-modal-card {
             width: min(100%, 520px);
             background: white;
-            border-radius: 24px;
+            border-radius: 20px;
             padding: 22px;
             box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+            animation: modal-panel-in 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
 
         .feature-tag-picker-card {
             width: min(100%, 560px);
+        }
+
+        .stock-item-modal-card {
+            width: min(100%, 720px);
+        }
+
+        .modal-title-row {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 14px;
+            margin-bottom: 16px;
+        }
+
+        .modal-title-row h2,
+        .modal-title-row h3 {
+            margin: 0 0 6px;
+        }
+
+        .icon-btn {
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-dark);
+            background: #f1f5f9;
+            cursor: pointer;
+        }
+
+        .stock-form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .stock-form-grid .feature-tag-picker,
+        .stock-form-grid .check-row,
+        .stock-form-grid .modal-actions,
+        .stock-form-grid .helper,
+        .stock-form-grid .muted-note {
+            grid-column: 1 / -1;
+        }
+
+        .tag-wizard {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            margin: 14px 0 18px;
+        }
+
+        .wizard-step {
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            background: #f8fafc;
+            padding: 12px;
+        }
+
+        .wizard-step strong {
+            display: block;
+            font-size: 0.88rem;
+            margin-bottom: 4px;
+        }
+
+        .wizard-step span {
+            color: var(--text-muted);
+            font-size: 0.78rem;
+            line-height: 1.35;
+        }
+
+        .wizard-step.is-active {
+            background: #e8f2ff;
+            border-color: #9cc7ff;
         }
 
         .feature-tag-modal-card h3,
@@ -434,6 +545,13 @@
             border-radius: 16px;
             padding: 12px 14px;
             background: #f8fafc;
+            transition: border-color 0.18s ease, background-color 0.18s ease, transform 0.18s ease;
+        }
+
+        .feature-tag-card:has(input:checked) {
+            border-color: #0969da;
+            background: #e8f2ff;
+            transform: translateY(-1px);
         }
 
         .feature-tag-card strong {
@@ -498,6 +616,42 @@
             color: #991b1b;
         }
 
+        .mini-btn.adjust {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .code-cell {
+            display: grid;
+            gap: 4px;
+        }
+
+        .code-cell strong {
+            font-size: 0.92rem;
+        }
+
+        .code-cell span {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+
+        .import-summary {
+            display: grid;
+            gap: 8px;
+            max-height: 280px;
+            overflow: auto;
+            padding: 10px;
+            border-radius: 14px;
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            font-size: 0.86rem;
+        }
+
+        .import-row-error {
+            color: #991b1b;
+            font-weight: 700;
+        }
+
         .empty-row {
             text-align: center;
             color: var(--text-muted);
@@ -512,6 +666,27 @@
 
             .layout {
                 grid-template-columns: 1fr;
+            }
+
+            .stock-form-grid,
+            .tag-wizard {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @keyframes modal-overlay-in {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes modal-panel-in {
+            from {
+                opacity: 0;
+                transform: translateY(16px) scale(0.96);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
             }
         }
     </style>
@@ -530,6 +705,9 @@
                 </div>
             </div>
             <div class="header-actions">
+                <button class="primary-action" type="button" id="openStockItemModalBtn">Add Stock Item</button>
+                <button class="utility-button" type="button" id="exportCsvBtn">Export CSV</button>
+                <button class="utility-button" type="button" id="importCsvBtn">Import CSV</button>
                 <button class="feature-tag-button" type="button" id="createFeatureTagBtn">Create Feature Tag</button>
             </div>
         </header>
@@ -558,44 +736,79 @@
                 </div>
             </section>
 
-            <aside class="panel">
-                <h2 id="formTitle">Add Stock Item</h2>
-                <form id="stockForm" class="form-grid">
-                    <input id="itemName" type="text" placeholder="Item name" maxlength="60" required>
-                    <div class="feature-tag-picker">
-                        <label class="feature-tag-help" for="selectedFeatureTags">Add Feature Tags</label>
-                        <button class="feature-tag-add-btn" type="button" id="openFeatureTagPickerBtn" aria-label="Add feature tags">+</button>
-                        <div class="feature-tag-list" id="selectedFeatureTagChips"></div>
-                    </div>
-                    <input id="itemPrice" type="number" min="0" step="0.01" placeholder="Price (THB)" required>
-                    <input id="itemStock" type="number" min="0" step="1" placeholder="In stock" required>
-                    <input id="itemReorder" type="number" min="0" step="1" placeholder="Reorder level" required>
-                    <button class="action-btn" type="submit" id="saveItemBtn">Save Item</button>
-                    <button class="action-btn" type="button" id="cancelEditBtn" style="display:none;background:#64748b;">Cancel Edit</button>
-                </form>
+        </div>
+    </div>
+
+    <div class="stock-item-modal" id="stockItemModal" hidden>
+        <div class="stock-item-modal-card" role="dialog" aria-modal="true" aria-labelledby="formTitle">
+            <div class="modal-title-row">
+                <div>
+                    <h2 id="formTitle">Add Stock Item</h2>
+                    <p class="feature-tag-help">Use Feature Tags as the item grouping and variant identity.</p>
+                </div>
+                <button class="icon-btn" type="button" id="closeStockItemModalBtn" aria-label="Close item form">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <form id="stockForm" class="stock-form-grid">
+                <input id="itemName" type="text" placeholder="Item name" maxlength="60" required>
+                <input id="itemPrice" type="number" min="0" step="0.01" placeholder="Price (THB)" required>
+                <input id="itemStock" type="number" min="0" step="1" placeholder="In stock" required>
+                <input id="itemReorder" type="number" min="0" step="1" placeholder="Reorder level" required>
+                <div class="feature-tag-picker">
+                    <label class="feature-tag-help" for="selectedFeatureTags">Feature Tags</label>
+                    <button class="feature-tag-add-btn" type="button" id="openFeatureTagPickerBtn" aria-label="Choose feature tags">+</button>
+                    <div class="feature-tag-list" id="selectedFeatureTagChips"></div>
+                </div>
+                <label class="check-row"><input id="itemActive" type="checkbox" checked> Active in POS</label>
                 <p class="muted-note">Changes sync live to POS menu from Firestore collection <b>products</b>.</p>
                 <p class="helper" id="formStatus">Ready.</p>
-            </aside>
+                <div class="modal-actions">
+                    <button class="modal-secondary-btn" type="button" id="cancelEditBtn">Cancel</button>
+                    <button class="modal-primary-btn" type="submit" id="saveItemBtn">Save Item</button>
+                </div>
+            </form>
         </div>
     </div>
 
     <div class="feature-tag-modal" id="featureTagModal" hidden>
         <div class="feature-tag-modal-card" role="dialog" aria-modal="true" aria-labelledby="featureTagModalTitle">
-            <h3 id="featureTagModalTitle">Create Feature Tag</h3>
-            <p>Add a reusable label and category for inventory tagging.</p>
-            <form id="featureTagForm" class="modal-form">
-                <input id="featureTagName" type="text" placeholder="Tag name" maxlength="40" required>
+            <div class="modal-title-row">
                 <div>
-                    <div class="feature-tag-help" style="margin-bottom:8px;">Feature tag category</div>
+                    <h3 id="featureTagModalTitle">Feature Tags Setup</h3>
+                    <p>Create a Tags Group first, then add Feature Tags inside it.</p>
+                </div>
+                <button class="icon-btn" type="button" id="cancelFeatureTagBtn" aria-label="Close feature tag setup">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="tag-wizard" aria-label="Feature tag setup steps">
+                <div class="wizard-step is-active">
+                    <strong>1. Tags Group</strong>
+                    <span>Examples: Size, Color, Flavor, Pack.</span>
+                </div>
+                <div class="wizard-step">
+                    <strong>2. Feature Tag</strong>
+                    <span>Examples: XL, Black, Spicy, 500g.</span>
+                </div>
+                <div class="wizard-step">
+                    <strong>3. Apply</strong>
+                    <span>Choose tags when creating a stock item.</span>
+                </div>
+            </div>
+            <form id="featureTagForm" class="modal-form">
+                <input id="featureTagName" type="text" placeholder="Feature tag name" maxlength="40" required>
+                <div>
+                    <div class="feature-tag-help" style="margin-bottom:8px;">Tags Group</div>
                     <div class="category-row">
-                        <input id="featureTagCategory" type="text" placeholder="Category name" maxlength="40" required>
-                        <button type="button" class="category-add-btn" id="addFeatureTagCategoryBtn">Add Category</button>
+                        <input id="featureTagCategory" type="text" placeholder="Tags Group name" maxlength="40" required>
+                        <button type="button" class="category-add-btn" id="addFeatureTagCategoryBtn">Add Tags Group</button>
                     </div>
                     <div class="category-chip-list" id="featureTagCategoryChips"></div>
                 </div>
                 <div class="modal-actions">
-                    <button type="button" class="modal-secondary-btn" id="cancelFeatureTagBtn">Cancel</button>
-                    <button type="submit" class="modal-primary-btn">Create Tag</button>
+                    <button type="button" class="modal-secondary-btn" id="cancelFeatureTagSecondaryBtn">Cancel</button>
+                    <button type="submit" class="modal-primary-btn">Create Feature Tag</button>
                 </div>
             </form>
         </div>
@@ -603,13 +816,48 @@
 
     <div class="feature-tag-picker-modal" id="featureTagPickerModal" hidden>
         <div class="feature-tag-picker-card" role="dialog" aria-modal="true" aria-labelledby="featureTagPickerTitle">
-            <h3 id="featureTagPickerTitle">Select Feature Tags</h3>
-            <p>Choose one or more saved tags for this stock item.</p>
+            <h3 id="featureTagPickerTitle">Choose Feature Tags</h3>
+            <p>Pick one or more Feature Tags. They work as the item's group, size, color, flavor, pack, or other selling identity.</p>
             <div id="featureTagOptions" class="feature-tag-groups"></div>
             <div class="modal-actions">
                 <button type="button" class="modal-secondary-btn" id="cancelFeatureTagPickerBtn">Cancel</button>
-                <button type="button" class="modal-primary-btn" id="applyFeatureTagsBtn">Apply Tags</button>
+                <button type="button" class="modal-primary-btn" id="applyFeatureTagsBtn">Apply Feature Tags</button>
             </div>
+        </div>
+    </div>
+
+    <div class="feature-tag-picker-modal" id="csvImportModal" hidden>
+        <div class="feature-tag-picker-card" role="dialog" aria-modal="true" aria-labelledby="csvImportTitle">
+            <h3 id="csvImportTitle">Import Inventory CSV</h3>
+            <p>Required columns: name, price, stockQty, reorderLevel. Optional: category, featureTags, active.</p>
+            <form id="csvImportForm" class="modal-form">
+                <input id="csvImportFile" type="file" accept=".csv,text/csv" required>
+                <div id="csvImportSummary" class="import-summary">Choose a CSV file to preview changes.</div>
+                <div class="modal-actions">
+                    <button type="button" class="modal-secondary-btn" id="cancelCsvImportBtn">Cancel</button>
+                    <button type="submit" class="modal-primary-btn" id="applyCsvImportBtn" disabled>Apply Import</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="feature-tag-picker-modal" id="stockAdjustModal" hidden>
+        <div class="feature-tag-picker-card" role="dialog" aria-modal="true" aria-labelledby="stockAdjustTitle">
+            <h3 id="stockAdjustTitle">Adjust Stock</h3>
+            <p id="stockAdjustItemLabel">Select an adjustment for this item.</p>
+            <form id="stockAdjustForm" class="modal-form">
+                <select id="stockAdjustType" required>
+                    <option value="add">Add stock</option>
+                    <option value="remove">Remove stock</option>
+                    <option value="set">Set exact stock</option>
+                </select>
+                <input id="stockAdjustQty" type="number" min="0" step="1" placeholder="Quantity" required>
+                <input id="stockAdjustReason" type="text" maxlength="120" placeholder="Reason / note" required>
+                <div class="modal-actions">
+                    <button type="button" class="modal-secondary-btn" id="cancelStockAdjustBtn">Cancel</button>
+                    <button type="submit" class="modal-primary-btn">Save Adjustment</button>
+                </div>
+            </form>
         </div>
     </div>
 

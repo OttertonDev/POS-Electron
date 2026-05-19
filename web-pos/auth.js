@@ -13,6 +13,7 @@ import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10
 const googleProvider = new GoogleAuthProvider();
 const db = getFirestore(app);
 const validRoles = new Set(['administrator', 'staff']);
+const adminOnlyPages = new Set(['stock', 'receipt-settings', 'preferences']);
 
 window.webPosAuthState = {
     ready: false,
@@ -142,7 +143,7 @@ async function enforceRoleAccess(user) {
         return;
     }
 
-    if (page === 'stock' && !state.isAdmin) {
+    if (adminOnlyPages.has(page) && !state.isAdmin) {
         window.location.replace('index.html?reason=permission');
     }
 }

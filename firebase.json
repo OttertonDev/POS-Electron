@@ -3,7 +3,7 @@
     "rules": "firestore.rules"
   },
   "hosting": {
-    "public": "Web-POS",
+    "public": "web-pos",
     "ignore": [
       "firebase.json",
       "**/.*",

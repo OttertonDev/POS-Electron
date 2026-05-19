@@ -16,12 +16,27 @@ const db = getFirestore(app);
 
 const PRINT_SERVICE_URL = "http://127.0.0.1:3011";
 const SERVICE_POLL_INTERVAL_MS = 5000;
+const DEFAULT_RECEIPT_LINES = [
+    { id: "storeName", type: "field", source: "storeName", label: "", align: "center", visible: true },
+    { id: "address", type: "field", source: "address", label: "", align: "center", visible: true },
+    { id: "phone", type: "field", source: "phone", label: "Tel", align: "center", visible: true },
+    { id: "receiptId", type: "field", source: "receiptId", label: "Receipt", align: "center", visible: true },
+    { id: "date", type: "field", source: "date", label: "", align: "center", visible: true },
+    { id: "dividerTop", type: "divider", label: "", align: "left", visible: true },
+    { id: "items", type: "items", label: "Items", align: "left", visible: true },
+    { id: "dividerBottom", type: "divider", label: "", align: "left", visible: true },
+    { id: "totals", type: "totals", label: "Totals", align: "left", visible: true },
+    { id: "payment", type: "payment", label: "Payment", align: "left", visible: true },
+    { id: "footer", type: "footer", source: "footer", label: "", align: "center", visible: true }
+];
 
 let receiptSettings = {
     storeName: "Otterton's Point of Sale (Loading...)",
     address: "---",
     phone: "---",
     footer: "---",
+    maxFeatureTagsOnReceipt: 3,
+    lines: DEFAULT_RECEIPT_LINES,
     fontSize: 13,
     storeNameFontSize: 16,
     storeNameAlign: "center",
@@ -31,6 +46,7 @@ let receiptSettings = {
 
 let products = [];
 let cart = [];
+let productSearchTerm = "";
 let selectedCategoryKeys = new Set();
 let selectedTagKeys = new Set();
 let expandedCategoryKeys = new Set();
@@ -46,6 +62,7 @@ const subtotalEl = document.getElementById("subtotal");
 const taxEl = document.getElementById("tax");
 const totalEl = document.getElementById("total");
 const checkoutBtn = document.getElementById("checkoutBtn");
+const productSearchInput = document.getElementById("productSearch");
 const serviceStatus = document.getElementById("serviceStatus");
 const serviceStatusText = serviceStatus?.querySelector(".service-status-text");
 const checkoutNote = document.getElementById("checkoutNote");
@@ -129,6 +146,41 @@ function normalizeFeatureTags(value, fallbackCategory = "") {
     return tags;
 }
 
+function buildFeatureTagLine(product) {
+    const configuredMax = Number(receiptSettings.maxFeatureTagsOnReceipt);
+    const maxTags = Math.min(3, Math.max(0, Math.floor(Number.isFinite(configuredMax) ? configuredMax : 3)));
+    return normalizeFeatureTags(product.featureTags, product.category)
+        .map((tag) => tag.category ? `${tag.category}: ${tag.name}` : tag.name)
+        .slice(0, maxTags)
+        .join(" / ");
+}
+
+function normalizeReceiptLayout(lines) {
+    const source = Array.isArray(lines) && lines.length ? lines : DEFAULT_RECEIPT_LINES;
+    return source.map((line, index) => ({
+        id: String(line.id || `${line.type || "line"}-${index}`),
+        type: String(line.type || "field"),
+        source: String(line.source || ""),
+        label: String(line.label || ""),
+        align: ["left", "center", "right"].includes(line.align) ? line.align : "left",
+        visible: line.visible !== false,
+        text: String(line.text || "")
+    }));
+}
+
+function getSearchBlob(product) {
+    const tags = normalizeFeatureTags(product.featureTags, product.category)
+        .map((tag) => `${tag.name} ${tag.category}`)
+        .join(" ");
+
+    return [
+        product.name,
+        product.category,
+        buildFeatureTagLine(product),
+        tags
+    ].join(" ").toLowerCase();
+}
+
 function getTagKey(tag) {
     return normalizeTagKey(tag?.name || tag?.label || tag?.title || "");
 }
@@ -199,7 +251,7 @@ function renderFeatureTagTree() {
     }
 
     if (featureTagTree.length === 0) {
-        featureTagTreeListEl.innerHTML = '<div class="tree-empty">No feature tags found in Firestore.</div>';
+        featureTagTreeListEl.innerHTML = '<div class="tree-empty">No feature tags found.</div>';
         syncAllCheckboxState();
         return;
     }
@@ -348,6 +400,10 @@ async function init() {
     document.getElementById("currentDate").innerText = new Date().toLocaleDateString("th-TH");
 
     checkoutBtn?.addEventListener("click", completeSale);
+    productSearchInput?.addEventListener("input", () => {
+        productSearchTerm = productSearchInput.value.trim().toLowerCase();
+        renderProducts();
+    });
 
     await refreshPrintServiceStatus();
     window.setInterval(refreshPrintServiceStatus, SERVICE_POLL_INTERVAL_MS);
@@ -410,7 +466,13 @@ async function loadReceiptSettings() {
     try {
         const snap = await getDoc(doc(db, "settings", "receipt"));
         if (snap.exists()) {
-            receiptSettings = { ...receiptSettings, ...snap.data() };
+            const data = snap.data();
+            receiptSettings = {
+                ...receiptSettings,
+                ...data,
+                maxFeatureTagsOnReceipt: Math.min(3, Math.max(0, Math.floor(Number(data.maxFeatureTagsOnReceipt ?? 3) || 0))),
+                lines: normalizeReceiptLayout(data.lines)
+            };
         }
     } catch (error) {
         console.warn("Could not load receipt settings:", error);
@@ -501,7 +563,7 @@ function renderProducts() {
         }
 
         if (selectedCategoryKeys.size === 0 && selectedTagKeys.size === 0) {
-            return true;
+            return !productSearchTerm || getSearchBlob(product).includes(productSearchTerm);
         }
 
         const tags = normalizeFeatureTags(product.featureTags, product.category);
@@ -509,7 +571,10 @@ function renderProducts() {
         const categoryMatch = selectedCategoryKeys.has(productCategoryKey);
         const tagMatch = tags.some((tag) => selectedTagKeys.has(getTagKey(tag)));
 
-        return categoryMatch || tagMatch;
+        const filterMatch = categoryMatch || tagMatch;
+        const searchMatch = !productSearchTerm || getSearchBlob(product).includes(productSearchTerm);
+
+        return filterMatch && searchMatch;
     });
 
     if (filtered.length === 0) {
@@ -528,6 +593,7 @@ function renderProducts() {
             </div>
             <div class="product-info">
                 <h3>${escapeHtml(product.name)}</h3>
+                <div class="product-code">${escapeHtml(buildFeatureTagLine(product) || "No feature tags")}</div>
                 <div class="product-price">THB ${product.price.toFixed(2)}</div>
                 <div style="font-size:0.8rem;color:#64748b;">Stock: ${product.stockQty}</div>
             </div>
@@ -573,6 +639,7 @@ function updateCartUI() {
             <div class="cart-item">
                 <div class="item-details">
                     <div style="font-weight: 600;">${item.name}</div>
+                    <div style="font-size: 0.76rem; color: #475569;">${escapeHtml(buildFeatureTagLine(item))}</div>
                     <div style="font-size: 0.8rem; color: #64748b;">THB ${item.price.toFixed(2)} x ${item.qty}</div>
                 </div>
                 <div style="font-weight: 700;">THB ${(item.price * item.qty).toFixed(2)}</div>
@@ -631,6 +698,8 @@ function buildReceiptPayload(receiptId) {
         date: `${now.toLocaleDateString("th-TH")} ${now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}`,
         items: cart.map((item) => ({
             productId: item.id,
+            featureTags: normalizeFeatureTags(item.featureTags, item.category),
+            tagLine: buildFeatureTagLine(item),
             qty: `${item.qty}x`,
             quantity: item.qty,
             name: item.name,
@@ -642,7 +711,8 @@ function buildReceiptPayload(receiptId) {
         total,
         cash: total,
         change: "0.00",
-        footer: receiptSettings.footer || "---"
+        footer: receiptSettings.footer || "---",
+        receiptLayout: normalizeReceiptLayout(receiptSettings.lines)
     };
 }
 
@@ -690,8 +760,11 @@ async function writeReceiptRecord(payload) {
         cash: payload.cash,
         change: payload.change,
         footer: payload.footer,
+        receiptLayout: normalizeReceiptLayout(payload.receiptLayout),
         items: payload.items.map((item) => ({
             productId: item.productId || "",
+            featureTags: normalizeFeatureTags(item.featureTags),
+            tagLine: item.tagLine || item.variantLine || "",
             qty: item.qty,
             quantity: item.quantity,
             name: item.name,
